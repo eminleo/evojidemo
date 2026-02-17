@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA Settings -->
+    <meta name="theme-color" content="#222222">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <title>Dark Forest Demo V2 (Auto-Save)</title>
+    <style>
+        :root { 
+            --c-white: #FFFFFF; --c-black: #000000; --c-red: #D72600; --c-yellow: #ECD407; --c-green: #379711; --c-blue: #0956BF; 
+            
+            /* Fog Variables */
+            --fog-color: #000;
+            --fog-mask-start: 5%;
+            --fog-mask-end: 15%;
+            
+            /* Texture Base */
+            --bg-paper: #f5f5dc;
+            --tex-paper: url('https://www.transparenttextures.com/patterns/lined-paper-2.png');
+        }
+        
+        body { 
+            margin: 0; padding: 0; 
+            background-color: #222; 
+            color: var(--c-black); 
+            font-family: "Courier New", monospace; 
+            display: flex; justify-content: center; height: 100vh; overflow: hidden; 
+        }
+        
+        #game-container { 
+            width: 100%; max-width: 450px; height: 100%; 
+            display: flex; flex-direction: column; 
+            background-color: var(--bg-paper); 
+            background-image: var(--tex-paper);
+            border-left: 1px solid #999; border-right: 1px solid #999; 
+            position: relative; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        
+        button { background: #fff; color: #000; border: 1px dashed #666; padding: 5px 10px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 12px; border-radius: 0; box-shadow: 1px 1px 0 rgba(0,0,0,0.1); }
+        button:hover { background: #000; color: #fff; border-style: solid; border-color: #000; }
+        button:disabled { border: 1px dashed #ccc; color: #999; background: #eee; cursor: not-allowed; }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        
+        /* HUD Blocks */
+        #hud { 
+            flex: 0 0 auto; 
+            border-bottom: 2px solid #666; 
+            padding: 5px 10px; 
+            background-color: var(--bg-paper);
+            background-image: var(--tex-paper);
+            display: flex; flex-direction: column; gap: 0; z-index: 60; position: relative; 
+        }
+        
+        .hud-top-row { display: flex; justify-content: space-between; align-items: center; height: 40px; padding-bottom: 4px; }
+        .hud-info-group { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; cursor: pointer; user-select: none; }
+        .hud-info-group:hover { opacity: 0.7; }
+        .phase-info { font-size: 16px; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
+        .turn-info { font-size: 12px; font-weight: bold; margin-top: 0; line-height: 1.2; }
+        
+        .deck-controls { display: flex; flex-direction: row; gap: 4px; flex-shrink: 0; }
+        .deck-indicator { border: 1px dashed #666; padding: 1px 4px; font-size: 10px; background: rgba(255,255,255,0.6); min-width: 40px; text-align: center; cursor: pointer; white-space: nowrap; display: flex; flex-direction: column; justify-content: center; height: 32px; box-sizing: border-box; }
+        .deck-indicator:hover { background: #000; color: #fff; border-style: solid; border-color: #000; transform: translateY(-2px); }
+
+        .hud-log-row { border-top: 1px dashed #999; padding: 4px 0; width: 100%; position: relative; }
+        #log-wrapper { height: 36px; position: relative; width: 100%; } 
+        #mini-log { position: absolute; top: 0; left: 0; width: 100%; height: 36px; overflow: hidden; font-size: 12px; line-height: 18px; color: #000; border: 1px dashed #999; padding: 2px 4px; cursor: pointer; background: rgba(255,255,255,0.6); z-index: 50; transition: height 0.2s; box-sizing: border-box; }
+        #mini-log.expanded { height: 600px; overflow-y: auto; border: 1px dashed #999; border-top: none; box-shadow: 0 5px 10px rgba(0,0,0,0.2); z-index: 400; background: #fff; }
+        .log-entry { margin-bottom: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #mini-log.expanded .log-entry { white-space: normal; margin-bottom: 2px; border-bottom: 1px dashed #eee; }
+
+        .hud-bottom-row { display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed #999; padding-top: 4px; height: 44px; }
+        #turn-order-bar { display: flex; gap: 5px; overflow-x: auto; height: 100%; align-items: center; scrollbar-width: none; flex: 1; }
+        #turn-order-bar::-webkit-scrollbar { display: none; }
+        
+        .order-card { border: 1px dashed #666; padding: 2px 6px; font-size: 10px; background: rgba(255,255,255,0.8); min-width: auto; text-align: center; cursor: pointer; white-space: nowrap; }
+        .order-card.active { background: #000; color: #fff; }
+        .order-card.dead { text-decoration: line-through; border-style: dashed; opacity: 0.5; }
+        .order-card:hover { transform: translateY(-2px); }
+
+        #action-menu-container { 
+            width: 100%; display: flex; justify-content: center; padding: 4px 0; 
+            background-color: var(--bg-paper);
+            background-image: var(--tex-paper);
+            border-bottom: 2px solid #666; position: relative; z-index: 50; min-height: 50px; align-items: center; 
+        }
+        #action-menu { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; padding: 0 5px; }
+        .menu-btn { min-width: 65px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px;}
+        .menu-cost { font-size: 9px; font-weight: normal; }
+        .menu-btn.important { border: 1px dashed #666; font-weight: 900; }
+        .menu-btn.skill { background: #efe; border: 1px solid var(--c-green); } 
+        .menu-btn.skill:hover { background: var(--c-green); color: #fff; }
+        
+        #board-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; background-color: transparent; overflow: hidden; position: relative; }
+        
+        #grid { display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr); width: 100%; max-width: 400px; aspect-ratio: 1 / 1; border: 2px solid #333; background: #000; gap: 1px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
+        #fog-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 55;
+            background-color: var(--fog-color);
+            -webkit-mask-image: radial-gradient(circle at var(--fog-x, 50%) var(--fog-y, 50%), transparent var(--fog-mask-start), black var(--fog-mask-end));
+            mask-image: radial-gradient(circle at var(--fog-x, 50%) var(--fog-y, 50%), transparent var(--fog-mask-start), black var(--fog-mask-end));
+            display: none;
+            transition: background-color 0.5s;
+        }
+        .fog-active #fog-layer { display: block; }
+        .fog-active .cell-number { opacity: 0; }
+        
+        .cell { 
+            position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; 
+            background-color: #d9b6a3;
+            background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
+        }
+        .cell.terrain-land { background-color: #d9b6a3; background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png'); }
+        .cell.terrain-rock { background-color: #808080; background-image: url('https://www.transparenttextures.com/patterns/gravel.png'); }
+        .cell.terrain-hole { background-color: #A9DA3F; background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png'); }
+        .cell.terrain-void { background: #000; background-image: none; cursor: not-allowed; }
+
+        .cell-number { position: absolute; bottom: 1px; right: 1px; font-size: 10px; color: #000; pointer-events: none; font-weight: bold; z-index: 5; opacity: 0.6; transition: opacity 0.3s; text-shadow: 0 0 2px #fff; }
+        
+        .terrain-marker { position: absolute; font-size: 20px; z-index: 40; pointer-events: none; transition: all 0.2s; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.8; }
+        .terrain-marker.corner { top: auto; bottom: 1px; right: 1px; font-size: 14px; z-index: 40; transform: none; left: auto; background-color: transparent; line-height: 1; padding: 0 1px; }
+        
+        .cell.highlight-move::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 14px; height: 14px; background-color: rgba(55, 151, 17, 0.8); border-radius: 50%; z-index: 42; pointer-events: none; box-shadow: 0 0 5px #fff; }
+        .cell.highlight-move { cursor: pointer; }
+        .cell.highlight-attack { background-color: rgba(255, 238, 238, 0.8); border: 1px dashed var(--c-red); cursor: pointer; z-index: 56; }
+        .cell.highlight-teleport { background-color: rgba(239, 255, 239, 0.8); border: 1px dashed var(--c-green); cursor: pointer; z-index: 56; }
+        
+        .food { position: absolute; top: 1px; left: 1px; font-size: 12px; z-index: 40; pointer-events: none; transition: all 0.2s; text-shadow: 0 0 2px #fff; }
+        .food.corner { font-size: 12px; }
+        
+        .entity { width: 70%; height: 70%; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 20px; z-index: 20; background: #fff; border: 2px solid #000; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .entity.player { border-color: var(--c-blue); color: #000; }
+        .entity.ai1 { border-color: var(--c-red); color: #000; }
+        .entity.ai2 { border-color: var(--c-yellow); color: #000; }
+        .entity.ai3 { border-color: var(--c-green); color: #000; }
+        .entity.active-turn { transform: scale(1.2); border-style: dashed !important; box-shadow: 0 0 10px var(--c-yellow); z-index: 25; background-color: #fff; }
+        .entity.dead { filter: grayscale(1); opacity: 0.5; border-style: dotted; }
+
+        #modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 500; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        
+        .modal-content { 
+            background-color: var(--bg-paper);
+            background-image: var(--tex-paper);
+            padding: 20px; border: 1px dashed #999; width: 85%; max-width: 320px; text-align: center; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+        }
+        
+        .modal-title { font-size: 18px; font-weight: 900; border-bottom: 1px dashed #999; margin-bottom: 10px; padding-bottom: 5px; }
+        
+        .modal-btn { width: 100%; margin-top: 10px; background: #000; color: #fff; padding: 8px; }
+        .evolution-card { border: 2px solid #000; padding: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; cursor: pointer; background: rgba(255,255,255,0.5); }
+        .evolution-card:hover { background: #000; color: #fff; }
+        
+        .floating-text { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:900; font-size:18px; pointer-events:none; z-index:45; color: #000; animation: floatUp 1s forwards; text-shadow: 0 0 3px #fff; }
+        .floating-text.float-down { animation: floatDown 1s forwards; color: var(--c-red); }
+        @keyframes floatUp { 100% { transform:translate(-50%,-200%); opacity:0 } }
+        @keyframes floatDown { 100% { transform:translate(-50%,200%); opacity:0 } }
+        .flash-red-overlay { position: absolute; top:0; left:0; right:0; bottom:0; background-color: rgba(215, 38, 0, 0.4); box-shadow: inset 0 0 10px var(--c-red); z-index: 30; pointer-events: none; animation: fadeOut 0.8s forwards; }
+        @keyframes fadeOut { 100% { opacity: 0; } }
+        .stats-container { text-align: left; font-family: "Courier New", monospace; }
+        .stats-header { margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed #999; }
+        .hp-bar-container { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+        .hp-block { width: 14px; height: 14px; border: 1px solid #000; }
+        .hp-fill { background-color: var(--c-green); }
+        .hp-extra { background-color: var(--c-blue); }
+        .hp-empty { background-color: #eee; }
+        .resource-row { display: flex; gap: 15px; font-size: 14px; font-weight: bold; align-items: center; }
+        .section-title { font-size: 11px; font-weight: bold; margin: 12px 0 6px 0; color: #666; letter-spacing: 1px; border-bottom: 1px dashed #999; padding-bottom: 2px; }
+        .specs-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .dna-container { display: flex; flex-wrap: wrap; gap: 6px; }
+        .skill-chip { padding: 4px 8px; border: 2px solid #999; border-radius: 4px; font-size: 12px; font-weight: bold; background: #fff; white-space: nowrap; display: inline-flex; align-items: center; }
+        .skill-chip.spec { border-color: var(--c-black); color: var(--c-black); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+        .skill-chip.active { border-color: var(--c-green); color: var(--c-black); box-shadow: 0 2px 0 rgba(55,151,17,0.1); }
+        .skill-chip.passive { border-color: var(--c-yellow); color: var(--c-black); box-shadow: 0 2px 0 rgba(236,212,7,0.1); }
+        .skill-chip.cooldown { opacity: 0.5; text-decoration: line-through; border-style: dashed; }
+
+        .combat-log { font-family: "Courier New", monospace; text-align: left; font-size: 13px; }
+        .combat-header { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed #999; padding-bottom: 4px; }
+        .combat-phase { margin-top: 8px; margin-bottom: 4px; font-weight: bold; background: #eee; padding: 2px 4px; display: inline-block; border-radius: 4px; }
+        .combat-roll { margin-left: 8px; margin-bottom: 2px; white-space: nowrap; }
+        .combat-result { margin-left: 8px; font-weight: bold; margin-top: 4px; }
+        .combat-result.success { color: var(--c-green); }
+        .combat-result.fail { color: var(--c-red); }
+        .combat-note { margin-left: 8px; color: #666; font-style: italic; }
+        small { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <div id="modal-overlay"><div class="modal-content" id="modal-body"></div></div>
+    <div id="hud">
+        <div class="hud-top-row">
+            <div class="hud-info-group" onclick="toggleFog()">
+                <div class="phase-info" id="phase-text">Dark Forest</div>
+                <div class="turn-info" id="turn-text">PWA Ready</div>
+            </div>
+            <div class="deck-controls">
+                <div class="deck-indicator" onclick="viewCards('deck')">
+                    <div style="font-weight:bold">牌庫</div>
+                    <div>📦<span id="deck-count">0</span></div>
+                </div>
+                <div class="deck-indicator" onclick="viewCards('discard')">
+                    <div style="font-weight:bold">棄牌</div>
+                    <div>🗑️<span id="discard-count">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-log-row">
+            <div id="log-wrapper">
+                <div id="mini-log" onclick="toggleLog()">
+                    <div class="log-entry">系統初始化...</div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-bottom-row">
+            <div id="turn-order-bar"></div>
+        </div>
+    </div>
+    <div id="action-menu-container">
+        <div id="action-menu">
+            <div style="color:#999; font-size:12px;">讀取中...</div>
+        </div>
+    </div>
+    <div id="board-area">
+        <div id="grid">
+            <div id="fog-layer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- PWA Service Worker Registration ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then((reg) => console.log('Service Worker registered.', reg))
+                .catch((err) => console.log('Service Worker registration failed.', err));
+        });
+    }
+
+    // --- HIVEMIND AI LOGIC START ---
+    const HivemindAI = {
+        HARD_RANKING: [
+            'parasite', 'radiation', 'molt', 'regeneration', 'pachyderms', 'speed',
+            'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
+            'diapause', 'autotomy', 'web', 'gigantism', 'devour',
+            'spore', 'snatch', 'colloid', 'mimicry', 'stinkGland', 'explode',
+            'dig', 'climb', 'feint', 'strangle',
+            'tonicImmobility', 'eyespots', 'burrow', 'shrink', 'hibernation',
+            'ram', 'foodGuard', 'pounce', 'ambush', 'dive', 'range',
+            'hp', 'counter', 'dodge', 'def', 'atk'
+        ],
+
+        T0_CARDS: new Set([
+            'parasite', 'radiation', 'molt', 'regeneration', 'pachyderms', 'speed',
+            'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
+            'diapause', 'autotomy', 'web', 'gigantism', 'devour'
+        ]),
+
+        HELD_CARD_TYPES: new Set([
+            'speed','regeneration','tonicImmobility','explode','spore','ram','radiation',
+            'photosynthesis','daywalker','nightstalker','hibernation','web','ambush',
+            'foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis',
+            'shrink','snatch','filterfeed','burrow','pounce','feint','strangle',
+            'eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow',
+            'radioactivePollution','pachyderms'
+        ]),
+
+        ROLE_PREFERENCE: {
+            'Hunter': new Set([
+                'devour','feint','strangle','ram','foodGuard','pounce',
+                'ambush','dive','range','counter','atk'
+            ]),
+            'Invasive': new Set([
+                'radiation','molt','regeneration','pachyderms','autotomy',
+                'web','gigantism','spore','snatch','colloid','mimicry',
+                'stinkGland','explode','tonicImmobility','eyespots','burrow',
+                'shrink','hibernation','hp','dodge','def'
+            ]),
+            'Prey': new Set([
+                'parasite','photosynthesis','marineSnow','filterfeed','diapause'
+            ]),
+            'Universal': new Set([
+                'speed','daywalker','nightstalker','dig','climb'
+            ])
+        },
+
+        pickEvolutionCard: function(cardOptions, aiEntity) {
+            const role = this.assignRole(aiEntity);
+            const getRank = (type) => { const idx = this.HARD_RANKING.indexOf(type); return idx === -1 ? 999 : idx; };
+            const isT0 = (type) => this.T0_CARDS.has(type);
+            
+            const t0Cards = cardOptions.filter(c => isT0(c.type));
+            if (t0Cards.length > 0) {
+                t0Cards.sort((a, b) => getRank(a.type) - getRank(b.type));
+                return cardOptions.indexOf(t0Cards[0]);
+            }
+
+            const roleSet = this.ROLE_PREFERENCE[role] || new Set();
+            const uniSet = this.ROLE_PREFERENCE['Universal'];
+            const fittingCards = cardOptions.filter(c => roleSet.has(c.type) || uniSet.has(c.type));
+            
+            if (fittingCards.length > 0) {
+                fittingCards.sort((a, b) => getRank(a.type) - getRank(b.type));
+                return cardOptions.indexOf(fittingCards[0]);
+            }
+
+            const sortedOptions = [...cardOptions].sort((a, b) => getRank(a.type) - getRank(b.type));
+            return cardOptions.indexOf(sortedOptions[0]);
+        },
+
+        planTurn: function(aiEntity, gameState) {
+            const scanResult = this.scanBoard(aiEntity, gameState);
+            const role = this.assignRole(aiEntity);
+            
+            let script = [];
+            let actionBudget = aiEntity.ap; 
+            let currentPos = aiEntity.pos;
+
+            if (actionBudget > 0) {
+                const killAction = this.checkInstantKill(aiEntity, scanResult.player, gameState);
+                if (killAction && actionBudget >= killAction.cost) {
+                    script.push(killAction);
+                    actionBudget -= killAction.cost;
+                }
+            }
+
+            let currentSimEntity = { ...aiEntity, ap: actionBudget };
+
+            const dangerousZones = this.getCollapseDangerZones(gameState);
+            if (dangerousZones.has(currentPos)) {
+                 const safeMoves = this.findBestMove(currentSimEntity, currentPos, gameState, {
+                    avoidDanger: true, mustBeSafe: true, strictTeammateSafety: true
+                });
+                if (safeMoves) { script.push(...safeMoves); return script; }
+            }
+
+            if (role === 'Hunter' && this.canHunterAttack(aiEntity, scanResult.player, gameState)) {
+                if (actionBudget >= 1) {
+                    const attackMoves = this.findPathToAttack(currentSimEntity, scanResult.player, gameState, 1);
+                    if (attackMoves) { script.push(...attackMoves); return script; }
+                }
+            }
+
+            const distToPlayer = this.getDist(currentPos, scanResult.player.pos);
+            const ignoreSafety = (role === 'Invasive' && aiEntity.hp > 6);
+            
+            if (!ignoreSafety && distToPlayer <= 3) {
+                 const fleeMoves = this.findBestMove(currentSimEntity, currentPos, gameState, {
+                    avoidPlayer: true, minDistToPlayer: 4, strictTeammateSafety: true, avoidDanger: true, mustBeSafe: true 
+                });
+                if (fleeMoves) { script.push(...fleeMoves); return script; }
+            }
+
+            if (gameState.mapData[currentPos].hasFood && aiEntity.food < 3 && actionBudget >= 1) {
+                script.push({ type: 'eat' });
+                actionBudget--;
+                currentSimEntity.ap = actionBudget;
+                currentSimEntity.food++; 
+            }
+
+            if (aiEntity.ap > 0 || aiEntity.movesFree > 0) {
+                const safetyCriteria = ignoreSafety ? 
+                    { strictTeammateSafety: true, avoidDanger: true, mustBeSafe: true } : 
+                    { minDistToPlayer: 4, avoidDanger: true, strictTeammateSafety: true, mustBeSafe: true };
+                
+                const foodMoves = this.findMaxFoodPath(currentSimEntity, gameState, safetyCriteria);
+                
+                if (foodMoves) {
+                    const distToFirstFood = this.getDistanceToFirstFood(foodMoves, gameState);
+                    if (distToFirstFood > 3 && actionBudget >= 3 && aiEntity.food < 3) {
+                        script.push({ type: 'remote_eat' }); 
+                        actionBudget -= 3;
+                        currentSimEntity.ap = actionBudget;
+                        currentSimEntity.food++;
+                    } else {
+                        const movesWithEat = [];
+                        let simulatedAP = actionBudget;
+                        let simulatedFree = aiEntity.movesFree;
+                        let simulatedFood = currentSimEntity.food; 
+                        let simPos = currentPos;
+                        let localConsumed = new Set(); 
+                        
+                        for (let move of foodMoves) {
+                            movesWithEat.push(move);
+                            const isTeleport = this.isTeleportMove(move, simPos);
+                            if (isTeleport) {
+                                const cost = (aiEntity.dig>=4?1:aiEntity.dig>=3?2:3);
+                                simulatedAP -= cost;
+                            } else {
+                                if (simulatedFree > 0) simulatedFree--; else simulatedAP--;
+                            }
+                            simPos = move.target;
+                            const targetCell = gameState.mapData[move.target];
+                            
+                            if (targetCell.hasFood && !localConsumed.has(move.target) && simulatedFood < 3 && simulatedAP >= 1) {
+                                movesWithEat.push({ type: 'eat' }); 
+                                simulatedAP--;
+                                simulatedFood++; 
+                                localConsumed.add(move.target); 
+                            }
+                        }
+                        script.push(...movesWithEat); return script;
+                    }
+                } else if (actionBudget >= 3 && aiEntity.food < 3) {
+                     script.push({ type: 'remote_eat' }); 
+                     actionBudget -= 3;
+                     currentSimEntity.ap = actionBudget;
+                     currentSimEntity.food++;
+                }
+            }
+
+            if (actionBudget > 0 || aiEntity.movesFree > 0) {
+                 const strategicMoves = this.findBestMove(currentSimEntity, currentPos, gameState, {
+                    generalStrategy: true, avoidPlayer: !ignoreSafety, strictTeammateSafety: true, avoidDanger: true, mustBeSafe: true 
+                });
+                if (strategicMoves) script.push(...strategicMoves);
+            }
+
+            if (script.length === 0) script.push({ type: 'wait' });
+            return script;
+        },
+
+        getExpandableMoves: function(currState, entity, gameState) {
+            const moves = [];
+            const pos = currState.pos;
+            const currentAP = currState.ap;
+            const currentFree = currState.free;
+            const r = Math.floor(pos/9), c = pos%9;
+            const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+            for(let d of dirs) {
+                const nr=r+d[0], nc=c+d[1];
+                if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                    const idx = nr*9+nc;
+                    const cell = gameState.mapData[idx];
+                    let blocked = false;
+                    if (cell.type === 'void') blocked = true;
+                    if (cell.entityId) blocked = true;
+                    if (cell.type === 'rock' && entity.climb < 1) blocked = true;
+                    if (cell.type === 'hole' && entity.dig < 1) blocked = true;
+                    if (!blocked) {
+                        if (currentFree > 0 || currentAP >= 1) {
+                            let newFree = currentFree;
+                            let newAP = currentAP;
+                            let cost = 10; 
+                            if (cell.hasFood) cost = 9;
+                            if (newFree > 0) newFree--; else newAP--;
+                            moves.push({ pos: idx, cost: cost, nextAP: newAP, nextFree: newFree });
+                        }
+                    }
+                }
+            }
+            if (entity.dig >= 2 && gameState.mapData[pos].type === 'hole') {
+                const teleportAP = (entity.dig >= 4) ? 1 : (entity.dig >= 3 ? 2 : 3);
+                if (currentAP >= teleportAP) {
+                    const teleportScore = teleportAP * 10;
+                    gameState.mapData.forEach(cell => {
+                        if (cell.type === 'hole' && cell.index !== pos && !cell.entityId) {
+                            let cost = teleportScore;
+                            if (cell.hasFood) cost -= 1;
+                            moves.push({ pos: cell.index, cost: cost, nextAP: currentAP - teleportAP, nextFree: currentFree });
+                        }
+                    });
+                }
+            }
+            return moves;
+        },
+
+        findPathToAttack: function(ai, target, gameState, reserveAP = 0) {
+            const range = ai.range || 0;
+            if (range <= 1) return null;
+            const validLaunchSpots = gameState.mapData.filter(c => {
+                const d = this.getDist(c.index, target.pos);
+                if (d > 1 && target.triggerOrder.includes('mimicry')) {
+                    const tCell = gameState.mapData[target.pos];
+                    if (tCell.type === 'rock' || tCell.type === 'land') return false;
+                }
+                const terrainOk = (c.type !== 'void') && !(c.type === 'rock' && ai.climb < 1) && !(c.type === 'hole' && ai.dig < 1);
+                return d <= range && d > 0 && terrainOk && (!c.entityId || c.entityId === ai.id);
+            });
+            let queue = [{ pos: ai.pos, cost: 0, ap: ai.ap, free: ai.movesFree, path: [] }];
+            let bestPath = null;
+            let minCost = 9999;
+            let visitedState = new Map();
+
+            while (queue.length > 0) {
+                queue.sort((a,b) => a.cost - b.cost);
+                let curr = queue.shift();
+                const stateKey = curr.pos;
+                let states = visitedState.get(stateKey) || [];
+                const isDominated = states.some(s => s.cost <= curr.cost && s.ap >= curr.ap && s.free >= curr.free);
+                if (isDominated) continue;
+                states = states.filter(s => !(curr.cost <= s.cost && curr.ap >= s.ap && curr.free >= s.free));
+                states.push({ cost: curr.cost, ap: curr.ap, free: curr.free });
+                visitedState.set(stateKey, states);
+
+                const isLaunchSpot = validLaunchSpots.some(s => s.index === curr.pos);
+                if (isLaunchSpot) {
+                    if (curr.ap >= reserveAP) {
+                        if (curr.cost < minCost) {
+                            minCost = curr.cost;
+                            const moves = curr.path.map(p => ({ type: 'move', target: p }));
+                            moves.push({ type: 'attack', target: target.pos });
+                            bestPath = moves;
+                        }
+                    }
+                }
+                let moves = this.getExpandableMoves(curr, ai, gameState);
+                for (let move of moves) {
+                    let newCost = curr.cost + move.cost;
+                    if (newCost < minCost) {
+                        queue.push({ pos: move.pos, cost: newCost, ap: move.nextAP, free: move.nextFree, path: [...curr.path, move.pos] });
+                    }
+                }
+            }
+            return bestPath;
+        },
+
+        findMaxFoodPath: function(ai, gameState, safetyCriteria) {
+            let queue = [{ pos: ai.pos, path: [], cost: 0, ap: ai.ap, free: ai.movesFree, foodCount: 0, consumed: [] }];
+            let visitedState = new Map(); 
+            let bestPath = null;
+            let maxFoodCount = -1;
+            let minFinalCost = 9999;
+            const playerPos = gameState.entities.find(e => e.id === 'player').pos;
+            const teammates = gameState.entities.filter(e => e.type === 'ai' && e.id !== ai.id);
+            const dangers = this.getCollapseDangerZones(gameState);
+            
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                const stateKey = curr.pos;
+                let states = visitedState.get(stateKey) || [];
+                const isDominated = states.some(s => s.cost <= curr.cost && s.food >= curr.foodCount && s.ap >= curr.ap && s.free >= curr.free);
+                if (isDominated) continue;
+                states = states.filter(s => !(curr.cost <= s.cost && curr.foodCount >= s.food && curr.ap >= s.ap && curr.free >= s.free));
+                states.push({ cost: curr.cost, food: curr.foodCount, ap: curr.ap, free: curr.free });
+                visitedState.set(stateKey, states);
+
+                if (curr.path.length > 0) {
+                    let isSafe = true;
+                    if (safetyCriteria.minDistToPlayer && this.getDist(curr.pos, playerPos) <= 3) isSafe = false;
+                    if (safetyCriteria.mustBeSafe && dangers.has(curr.pos)) isSafe = false;
+                    if (safetyCriteria.strictTeammateSafety) {
+                        if (teammates.some(tm => this.getDist(curr.pos, tm.pos) <= this.getSafeRadius(tm))) isSafe = false;
+                    }
+                    if (isSafe) {
+                        if (curr.foodCount > maxFoodCount || (curr.foodCount === maxFoodCount && curr.cost < minFinalCost)) {
+                            maxFoodCount = curr.foodCount;
+                            minFinalCost = curr.cost;
+                            bestPath = curr.path;
+                        }
+                    }
+                }
+                let moves = this.getExpandableMoves(curr, ai, gameState);
+                for(let move of moves) {
+                    if (curr.path.includes(move.pos)) continue;
+                    let newFood = curr.foodCount;
+                    let nextAP = move.nextAP;
+                    let nextConsumed = curr.consumed;
+
+                    if (gameState.mapData[move.pos].hasFood && !curr.consumed.includes(move.pos)) {
+                        if (nextAP >= 1) {
+                            newFood++;
+                            nextAP--;
+                            nextConsumed = [...curr.consumed, move.pos];
+                        }
+                    }
+                    
+                    queue.push({
+                        pos: move.pos, path: [...curr.path, move.pos], cost: curr.cost + move.cost, ap: nextAP, free: move.nextFree, foodCount: newFood, consumed: nextConsumed
+                    });
+                }
+            }
+            if (bestPath && maxFoodCount > 0) { return bestPath.map(p => ({ type: 'move', target: p })); }
+            return null;
+        },
+
+        findBestMove: function(ai, startPos, gameState, criteria) {
+            let queue = [{ pos: startPos, cost: 0, ap: ai.ap, free: ai.movesFree }];
+            let reachable = []; 
+            let visitedState = new Map();
+
+            while (queue.length > 0) {
+                queue.sort((a,b) => a.cost - b.cost);
+                let curr = queue.shift();
+                if (curr.pos !== startPos) reachable.push(curr.pos);
+                const stateKey = curr.pos;
+                let states = visitedState.get(stateKey) || [];
+                const isDominated = states.some(s => s.cost <= curr.cost && s.ap >= curr.ap && s.free >= curr.free);
+                if (isDominated) continue;
+                states = states.filter(s => !(curr.cost <= s.cost && curr.ap >= s.ap && curr.free >= s.free));
+                states.push({ cost: curr.cost, ap: curr.ap, free: curr.free });
+                visitedState.set(stateKey, states);
+
+                let moves = this.getExpandableMoves(curr, ai, gameState);
+                for(let move of moves) {
+                    queue.push({ pos: move.pos, cost: curr.cost + move.cost, ap: move.nextAP, free: move.nextFree });
+                }
+            }
+
+            let bestScore = -9999;
+            let bestTarget = null;
+            const playerPos = gameState.entities.find(e => e.id === 'player').pos;
+            const dangers = this.getCollapseDangerZones(gameState);
+            const teammates = gameState.entities.filter(e => e.type === 'ai' && e.id !== ai.id);
+            const foodPositions = gameState.mapData.filter(c => c.hasFood).map(c => c.index);
+
+            for (let node of reachable) {
+                if (criteria.mustBeSafe && dangers.has(node)) continue;
+                const distToPlayer = this.getDist(node, playerPos);
+                if (criteria.minDistToPlayer && distToPlayer <= 3) continue;
+                if (criteria.strictTeammateSafety) {
+                    if (teammates.some(tm => this.getDist(node, tm.pos) <= this.getSafeRadius(tm))) continue;
+                }
+                let score = 0;
+                if (criteria.avoidPlayer) score += distToPlayer * 5; 
+                if (criteria.avoidDanger && dangers.has(node)) score -= 1000;
+                teammates.forEach(tm => { 
+                    if (this.getDist(node, tm.pos) <= this.getSafeRadius(tm)) score -= 100; 
+                });
+                
+                if (criteria.generalStrategy) { 
+                    if (gameState.mapData[node].hasFood) score += 20; 
+                    if (foodPositions.length > 0) {
+                        let minDistToFood = 999;
+                        for (let fPos of foodPositions) {
+                            let d = this.getDist(node, fPos);
+                            if (d < minDistToFood) minDistToFood = d;
+                        }
+                        score -= minDistToFood * 2;
+                    }
+                }
+                
+                if (score > bestScore) { bestScore = score; bestTarget = node; }
+            }
+            if (bestTarget) {
+                const pathObj = this.findPathToSpecificTarget(ai, bestTarget, gameState);
+                if (pathObj) { return pathObj.map(p => ({ type: 'move', target: p })); }
+            }
+            return null;
+        },
+
+        findPathToSpecificTarget: function(ai, targetPos, gameState) {
+            let queue = [{ pos: ai.pos, cost: 0, ap: ai.ap, free: ai.movesFree, path: [] }];
+            let visitedState = new Map();
+            while (queue.length > 0) {
+                queue.sort((a,b) => a.cost - b.cost);
+                let curr = queue.shift();
+                if (curr.pos === targetPos) return curr.path;
+                const stateKey = curr.pos;
+                let states = visitedState.get(stateKey) || [];
+                const isDominated = states.some(s => s.cost <= curr.cost && s.ap >= curr.ap && s.free >= curr.free);
+                if (isDominated) continue;
+                states = states.filter(s => !(curr.cost <= s.cost && curr.ap >= s.ap && curr.free >= s.free));
+                states.push({ cost: curr.cost, ap: curr.ap, free: curr.free });
+                visitedState.set(stateKey, states);
+                let moves = this.getExpandableMoves(curr, ai, gameState);
+                for (let move of moves) {
+                    queue.push({ pos: move.pos, cost: curr.cost + move.cost, ap: move.nextAP, free: move.nextFree, path: [...curr.path, move.pos] });
+                }
+            }
+            return null;
+        },
+
+        scanBoard: function(ai, gameState) {
+            const player = gameState.entities.find(e => e.id === 'player');
+            const teammates = gameState.entities.filter(e => e.type === 'ai' && e.id !== ai.id);
+            return { player, teammates };
+        },
+
+        assignRole: function(ent) {
+            const has = (type) => ent.heldCards.some(c => c.type === type) || ent.triggerOrder.includes(type);
+            let naturalRole = 'Prey';
+            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('radiation') || has('regeneration') || has('pachyderms')) { naturalRole = 'Invasive'; }
+            let finalRole = naturalRole;
+            if (ent._assignedRole) {
+                const prev = ent._assignedRole;
+                if (prev === 'Invasive') finalRole = 'Invasive'; else if (prev === 'Hunter') finalRole = 'Hunter'; else finalRole = naturalRole;
+            }
+            ent._assignedRole = finalRole;
+            return finalRole;
+        },
+
+        getDist: function(p1, p2) { return Math.abs(Math.floor(p1/9) - Math.floor(p2/9)) + Math.abs(p1%9 - p2%9); },
+
+        getSafeRadius: function(ai) {
+            let radius = 1;
+            if (ai.radiationLayers > 20 || ai.heldCards.some(c=>c.type==='spore')) radius = 2;
+            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 2;
+            return radius;
+        },
+
+        isTeleportMove: function(move, currentPos) {
+            if (!move || move.type !== 'move') return false;
+            const dist = this.getDist(currentPos, move.target);
+            return dist > 1;
+        },
+
+        getDistanceToFirstFood: function(moves, gameState) {
+            for (let i = 0; i < moves.length; i++) {
+                const pos = moves[i].target;
+                if (gameState.mapData[pos].hasFood) return i + 1;
+            }
+            return moves.length; 
+        },
+
+        checkInstantKill: function(ai, player, gameState) {
+            const dist = this.getDist(ai.pos, player.pos);
+            if (ai.radiationLayers > 100 && ai.ap > 0) {
+                 const r1 = Math.floor(ai.pos/9), c1 = ai.pos%9;
+                 const r2 = Math.floor(player.pos/9), c2 = player.pos%9;
+                 if (r1 === r2 || c1 === c2) {
+                     const spentAP = ai.ap;
+                     const damage = spentAP + 1 - dist;
+                     const playerHpTotal = player.hp + player.armor;
+                     if (damage >= playerHpTotal && !this.hasTeammateInLine(ai.pos, player.pos, gameState, ai.id, spentAP)) {
+                         const dr = Math.sign(r2 - r1);
+                         const dc = Math.sign(c2 - c1);
+                         return { type: 'skill', skill: 'atomic_breath', cost: ai.ap, target: player.pos, direction: [dr, dc] };
+                     }
+                 }
+            }
+            const hasRam = ai.heldCards.some(c => c.type === 'ram');
+            if (hasRam && dist === 1 && ai.ap >= 2) {
+                const ar = Math.floor(ai.pos/9), ac = ai.pos%9;
+                const tr = Math.floor(player.pos/9), tc = player.pos%9;
+                const dr = tr - ar, dc = tc - ac;
+                const pushR = tr + dr, pushC = tc + dc;
+                let isKill = false;
+                if (pushR < 0 || pushR > 8 || pushC < 0 || pushC > 8) {
+                    if (player.hp + player.armor <= 1) isKill = true;
+                } else {
+                    const pushIdx = pushR * 9 + pushC;
+                    const destCell = gameState.mapData[pushIdx];
+                    if (destCell.type === 'void') { isKill = true; } 
+                    else if (destCell.entityId || (destCell.type === 'rock' && player.climb < 1) || (destCell.type === 'hole' && player.dig < 1)) {
+                        if (player.hp + player.armor <= 1) isKill = true;
+                    }
+                }
+                if (isKill) { return { type: 'skill', skill: 'ram', cost: 2, target: player.pos }; }
+            }
+            return null;
+        },
+
+        hasTeammateInLine: function(start, end, gameState, myId, rangeLimit = 99) {
+            const r1 = Math.floor(start/9), c1 = start%9;
+            const r2 = Math.floor(end/9), c2 = end%9;
+            const dr = Math.sign(r2 - r1);
+            const dc = Math.sign(c2 - c1);
+            let currR = r1 + dr, currC = c1 + dc;
+            let steps = 1;
+            while (currR >= 0 && currR < 9 && currC >= 0 && currC < 9 && steps <= rangeLimit) {
+                const idx = currR * 9 + currC;
+                const cell = gameState.mapData[idx];
+                if (cell.entityId) {
+                    const ent = gameState.entities.find(e => e.id === cell.entityId);
+                    if (ent && ent.type === 'ai' && ent.id !== myId) return true;
+                }
+                currR += dr; currC += dc;
+                steps++;
+            }
+            return false;
+        },
+
+        canHunterAttack: function(hunter, player, gameState) {
+            let poolCount = 0;
+            const countHeld = (card) => { if(this.HELD_CARD_TYPES.has(card.type)) poolCount++; };
+            gameState.evolveDeck.forEach(countHeld);
+            if (gameState.evolveDiscard) gameState.evolveDiscard.forEach(countHeld);
+            if (poolCount >= 5) return false; 
+            if (hunter.range <= 1) return false;
+            if (hunter.dig < 2) return false;
+            const playerDefSum = player.hp + player.armor + player.def + player.dodge + player.counter;
+            if (hunter.atk <= playerDefSum) return false;
+            const playerHasRad = player.heldCards.some(c => c.type === 'radiation' || c.type === 'radioactivePollution');
+            if (playerHasRad) return false;
+            if (gameState.mapData[player.pos].type === 'rock' && player.climb > hunter.climb) return false;
+            return true;
+        },
+
+        getCollapseDangerZones: function(gameState) {
+            const hasDigLv4 = gameState.entities.some(e => !e.isDead && e.dig >= 4);
+            const dangers = new Set();
+            if (!hasDigLv4) return dangers;
+            gameState.mapData.forEach(cell => {
+                 if (cell.type !== 'void') {
+                     const neighbors = this.getTopologyNeighbors(cell.index, gameState);
+                     if (neighbors.length <= 2) {
+                         dangers.add(cell.index);
+                         neighbors.forEach(n => dangers.add(n));
+                     }
+                 }
+            });
+            return dangers;
+        },
+
+        getTopologyNeighbors: function(pos, gameState) {
+            const adjs = [];
+            const r = Math.floor(pos/9), c = pos%9;
+            [[0,1],[0,-1],[1,0],[-1,0]].forEach(d => {
+                const nr=r+d[0], nc=c+d[1];
+                if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                    const idx = nr*9+nc;
+                    if (gameState.mapData[idx].type !== 'void') adjs.push(idx);
+                }
+            });
+            return adjs;
+        }
+    };
+    // --- HIVEMIND AI LOGIC END ---
+
+    const HELD_CARDS = ['speed','regeneration','tonicImmobility','explode','spore','ram','radiation','photosynthesis','daywalker','nightstalker','hibernation','web','ambush','foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis','shrink','snatch','filterfeed','burrow','pounce','feint','strangle','eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow','radioactivePollution','pachyderms'];
+    
+    function getEntityIcon(ent) {
+        if (ent.heldCards.length > 0) {
+            let lastCard = ent.heldCards[ent.heldCards.length - 1];
+            return lastCard.name.split(' ')[0];
+        }
+        return '🧫';
+    }
+
+    // --- AI PLANNING & EXECUTION (Integrated) ---
+
+    let currentAiScript = [];
+
+    function aiTurnLoop(ent) {
+        if (ent.isDead) { endTurn(); return; }
+
+        const deckCount = evolveDeck.length + evolveDiscard.length;
+        if (ent.ap >= 1 && ent.food >= 3 && deckCount > 0) {
+            performEvolution(ent);
+            return; 
+        }
+        
+        const gameState = {
+            mapData: JSON.parse(JSON.stringify(mapData)),
+            entities: entities.map(e => ({...e})),
+            evolveDeck: evolveDeck,
+            evolveDiscard: evolveDiscard
+        };
+
+        const script = HivemindAI.planTurn(ent, gameState);
+        currentAiScript = script;
+        
+        executeNextAiAction(ent);
+    }
+
+    function executeNextAiAction(ent) {
+        if (!currentAiScript || currentAiScript.length === 0) {
+            endTurn();
+            return;
+        }
+
+        const nextAction = currentAiScript[0]; 
+        let isSafe = true;
+
+        if (ent.isDead) { isSafe = false; }
+        
+        if (isSafe) {
+            if (nextAction.type === 'move') {
+                const cell = mapData[nextAction.target];
+                if (!cell || cell.type === 'void') { isSafe = false; }
+                else if (cell.entityId) { isSafe = false; }
+                else if (cell.type === 'rock' && ent.climb < 1) { isSafe = false; }
+                else if (cell.type === 'hole' && ent.dig < 1) { isSafe = false; }
+                
+                if (isSafe) {
+                     const isTeleport = getDist(ent.pos, nextAction.target) > 1;
+                     let cost = 1;
+                     if (isTeleport) cost = (ent.dig>=4)?1:(ent.dig>=3)?2:3;
+                     else if (ent.movesFree > 0) cost = 0;
+                     
+                     if (ent.ap < cost) { isSafe = false; }
+                }
+            } else if (nextAction.type === 'attack') {
+                 const targetId = mapData[nextAction.target].entityId;
+                 if (!targetId) { isSafe = false; }
+                 else if (ent.ap < 1) { isSafe = false; }
+            } else if (nextAction.type === 'eat') {
+                 if (!mapData[ent.pos].hasFood) { isSafe = false; }
+                 else if (ent.ap < 1) { isSafe = false; }
+            } else if (nextAction.type === 'skill') {
+                 if (nextAction.skill === 'ram') {
+                     if (ent.ap < 2) { isSafe = false; }
+                     else if (!mapData[nextAction.target].entityId) { isSafe = false; }
+                 } else if (nextAction.skill === 'atomic_breath') {
+                     if (ent.ap <= 0) { isSafe = false; }
+                 }
+            }
+        }
+
+        if (!isSafe) {
+            log(`${ent.name} 💭`);
+            currentAiScript = [];
+            setTimeout(() => aiTurnLoop(ent), 500);
+            return;
+        }
+
+        const action = currentAiScript.shift();
+
+        if (action.type === 'wait') {
+            endTurn();
+            return;
+        }
+
+        if (action.type === 'move') {
+            executeAiMove(ent, action.target);
+        } else if (action.type === 'attack') {
+            let targetId = mapData[action.target].entityId;
+            let target = entities.find(e => e.id === targetId);
+            if (target) {
+                resolveCombat(ent, target);
+                return; 
+            } else {
+                executeNextAiAction(ent);
+            }
+        } else if (action.type === 'evolve') {
+            performEvolution(ent);
+            return;
+        } else if (action.type === 'eat') {
+            if (mapData[ent.pos].hasFood) {
+                if (ent.ap > 0) { 
+                    ent.ap--;
+                    mapData[ent.pos].hasFood = false;
+                    let actualGain = gainFood(ent, 1);
+                    if(actualGain > 0) log(`${ent.name} 😋 🍖+1 (${ent.food}/3)`);
+                    renderGrid(); updateHUD();
+                    setTimeout(() => executeNextAiAction(ent), 600);
+                } else {
+                    log(`${ent.name} 😣 沒力氣吃`);
+                    executeNextAiAction(ent);
+                }
+            } else {
+                log(`${ent.name} ❓ 食物消失了 (已濾食)`);
+                if (ent.ap > 0) {
+                     log(`${ent.name} 💡 重新規劃行動...`);
+                     setTimeout(() => aiTurnLoop(ent), 600);
+                } else {
+                     executeNextAiAction(ent);
+                }
+            }
+        } else if (action.type === 'remote_eat') {
+            log(`${ent.name} 🥡 🔋-3`);
+            ent.ap -= 3;
+            let actualGain = gainFood(ent, 1);
+            if(actualGain > 0) log(`${ent.name} 🥡 🍖+1 (${ent.food}/3)`);
+            renderGrid(); updateHUD();
+            setTimeout(() => executeNextAiAction(ent), 600);
+        } else if (action.type === 'skill') {
+            if (action.skill === 'atomic_breath') {
+                executeAiAtomicBreath(ent, action.cost, action.direction);
+            } else if (action.skill === 'ram') {
+                executeAiRam(ent, action.target);
+            }
+        } else {
+            executeNextAiAction(ent);
+        }
+    }
+
+    function executeAiMove(ent, targetIdx) {
+        let cost = 1;
+        let isTeleport = getDist(ent.pos, targetIdx) > 1;
+        let oldR = Math.floor(ent.pos/9), oldC = ent.pos%9;
+        let newR = Math.floor(targetIdx/9), newC = targetIdx%9;
+
+        if (isTeleport) {
+            cost = (ent.dig>=4)?1 : (ent.dig>=3)?2 : 3;
+            log(`${ent.name} 🌀 [${oldR},${oldC}]→[${newR},${newC}]`);
+            showFloat(targetIdx, "🌀");
+        } else {
+            let moveIcon = "";
+            if(ent.movesFree > 0) { cost = 0; ent.movesFree--; moveIcon = " 👟"; }
+            log(`${ent.name}${moveIcon} [${oldR},${oldC}]→[${newR},${newC}]`);
+        }
+
+        if(ent.ap >= cost || cost === 0) {
+            mapData[ent.pos].entityId = null;
+            mapData[targetIdx].entityId = ent.id;
+            ent.pos = targetIdx;
+            
+            if(ent.triggerOrder.includes('filterfeed') && mapData[targetIdx].hasFood && ent.food < 3) {
+                if(Math.random() < 0.4) {
+                    log(`${ent.name} 🦪 🍖+1`);
+                    mapData[targetIdx].hasFood = false;
+                    gainFood(ent, 1);
+                }
+            }
+            if (cost > 0) ent.ap -= cost;
+        }
+        renderGrid(); updateHUD();
+        setTimeout(() => executeNextAiAction(ent), 600);
+    }
+
+    function executeAiAtomicBreath(ent, apCost, direction) {
+        let r1 = Math.floor(ent.pos / 9), c1 = ent.pos % 9;
+        let dr = direction[0], dc = direction[1];
+        
+        ent.ap = 0;
+        log(`${ent.name} 🦖 原子吐息 (🔋ALL)`);
+        
+        for(let i=1; i<=apCost; i++) {
+            let nr = r1 + dr*i;
+            let nc = c1 + dc*i;
+            if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                let targetPos = nr*9 + nc;
+                let targetId = mapData[targetPos].entityId;
+                if(targetId) {
+                    let target = entities.find(e => e.id === targetId);
+                    if(target && !target.isDead) {
+                        let dmg = apCost + 1 - i;
+                        if(dmg > 0) {
+                            applyDamage(target, dmg, ent, true, false);
+                            log(`命中 ${target.name} (💥${dmg})`);
+                        }
+                    }
+                }
+            } else break;
+        }
+        renderGrid(); updateHUD();
+        setTimeout(() => executeNextAiAction(ent), 1000);
+    }
+
+    function executeAiRam(ent, targetPos) {
+        let target = entities.find(e => e.id === mapData[targetPos].entityId);
+        log(`${ent.name} 🐏 撞擊 ${target.name}`);
+        ent.ap -= 2;
+        
+        let cardIdx = ent.heldCards.findIndex(c => c.type === 'ram');
+        if(cardIdx !== -1) evolveDiscard.push(ent.heldCards.splice(cardIdx, 1)[0]);
+        
+        let atkR = Math.floor(ent.pos / 9), atkC = ent.pos % 9;
+        let tgtR = Math.floor(target.pos / 9), tgtC = target.pos % 9;
+        let dr = tgtR - atkR, dc = tgtC - atkC;
+        let destR = tgtR + dr, destC = tgtC + dc;
+        let blocked = false;
+        let destIdx = destR * 9 + destC;
+        
+        if(destR < 0 || destR > 8 || destC < 0 || destC > 8) { blocked = true; } 
+        else {
+            let destCell = mapData[destIdx];
+            if(destCell.entityId) blocked = true;
+            if(!blocked && destCell.type !== 'void') {
+                if(destCell.type === 'rock' && target.climb < 1) blocked = true;
+                if(destCell.type === 'hole' && target.dig < 1) blocked = true;
+            }
+            if(!blocked) {
+                mapData[target.pos].entityId = null;
+                mapData[destIdx].entityId = target.id;
+                target.pos = destIdx;
+                log(`${target.name} 🔙 被擊退`);
+                if(destCell.type === 'void') turnToVoid(destIdx);
+            }
+        }
+        if(blocked) {
+            applyDamage(target, 1, ent, true, false);
+            log(`${ent.name} 🐏 ${target.name} (💥1)`);
+        }
+        renderGrid(); updateHUD();
+        setTimeout(() => executeNextAiAction(ent), 1000);
+    }
+
+    // --- STANDARD GAME LOGIC ---
+
+    let mapData = [], entities = [];
+    let currentRound = 1, currentPhase = 'setup'; 
+    let turnOrder = [], currentTurnIndex = -1;
+    let evolveDeck = [], evolveDiscard = [];
+    let subPhase = 'wait'; 
+    let activeEntity = null;
+    window.currentPhaseId = "1-setup";
+    let currentStatsEntityId = null;
+    let isGameOver = false;
+    let surrenderState = false;
+    let isFogMode = true; // Default Fog ON
+
+    const gridEl = document.getElementById('grid');
+    const logEl = document.getElementById('mini-log');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const actionMenu = document.getElementById('action-menu'); 
+    const phaseText = document.getElementById('phase-text');
+    const turnText = document.getElementById('turn-text');
+
+    // --- SAVE/LOAD SYSTEM START ---
+    function saveGame() {
+        const state = {
+            mapData: mapData,
+            entities: entities,
+            currentRound: currentRound,
+            currentPhase: currentPhase,
+            turnOrder: turnOrder,
+            evolveDeck: evolveDeck,
+            evolveDiscard: evolveDiscard,
+            isFogMode: isFogMode,
+            isGameOver: isGameOver,
+            phaseId: window.currentPhaseId,
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem('hivemind_save_v1', JSON.stringify(state));
+        console.log("Game Saved at Phase Start", window.currentPhaseId);
+    }
+
+    function loadGame() {
+        const savedJson = localStorage.getItem('hivemind_save_v1');
+        if (!savedJson) return false;
+        
+        try {
+            const state = JSON.parse(savedJson);
+            
+            // Restore Variables
+            mapData = state.mapData;
+            entities = state.entities;
+            currentRound = state.currentRound;
+            currentPhase = state.currentPhase;
+            turnOrder = state.turnOrder;
+            evolveDeck = state.evolveDeck;
+            evolveDiscard = state.evolveDiscard;
+            isFogMode = state.isFogMode;
+            isGameOver = state.isGameOver;
+            window.currentPhaseId = state.phaseId;
+            
+            // Re-bind entity references in mapData (IMPORTANT for object reference consistency)
+            // JSON parsing creates new objects, so we must link mapData[i].entityId back to real entities if needed,
+            // but our logic uses ID strings, so it's mostly fine. 
+            // However, we need to make sure the `entities` array is the source of truth.
+            
+            // Reset UI State
+            subPhase = 'wait';
+            currentTurnIndex = -1; // Reset turn index to start of phase
+            activeEntity = null;
+
+            // Re-render
+            gridEl.innerHTML = '<div id="fog-layer"></div>';
+            if(isFogMode) gridEl.classList.add('fog-active');
+            else gridEl.classList.remove('fog-active');
+            
+            // Re-create DOM elements for grid
+            mapData.forEach(c => {
+                 let div = document.createElement('div');
+                div.className = `cell terrain-${c.type}`; 
+                div.id = `cell-${c.index}`;
+                div.onclick = () => onCellClick(c.index);
+                let numTag = document.createElement('div');
+                numTag.className = 'cell-number'; numTag.innerText = c.number;
+                div.appendChild(numTag);
+                if(c.type !== 'land' && c.type !== 'void') {
+                    let tm = document.createElement('div'); tm.className='terrain-marker';
+                    tm.innerText = (c.type==='hole') ? '🕳️' : '🪨';
+                    div.appendChild(tm);
+                }
+                gridEl.appendChild(div);
+            });
+            
+            renderGrid();
+            updateHUD();
+            
+            // Update Phase Text
+            let pName = (currentPhase === 'day') ? "🌞 日階段" : (currentPhase === 'night') ? "🌛 夜階段" : "準備";
+            phaseText.innerText = `R${currentRound} - ${pName}`;
+            turnText.innerText = "進度已載入";
+            
+            log("💾 讀取進度成功: " + pName);
+            
+            // Set Fog Colors
+            const root = document.documentElement;
+            if(currentPhase === 'day') {
+                root.style.setProperty('--fog-color', '#e3f1f2');
+                root.style.setProperty('--fog-mask-start', '15%');
+                root.style.setProperty('--fog-mask-end', '30%');
+            } else {
+                root.style.setProperty('--fog-color', '#000');
+                root.style.setProperty('--fog-mask-start', '5%');
+                root.style.setProperty('--fog-mask-end', '15%');
+            }
+
+            return true;
+        } catch (e) {
+            console.error("Load failed", e);
+            return false;
+        }
+    }
+    // --- SAVE/LOAD SYSTEM END ---
+
+    function log(msg) {
+        const div = document.createElement('div');
+        div.className = 'log-entry'; div.innerHTML = `> ${msg}`;
+        if(logEl.children.length > 100) logEl.lastChild.remove();
+        logEl.prepend(div);
+    }
+
+    function logHTML(html) {
+        const div = document.createElement('div');
+        div.className = 'log-entry'; 
+        div.innerHTML = html;
+        if(logEl.children.length > 100) logEl.lastChild.remove();
+        logEl.prepend(div);
+    }
+
+    function toggleLog() { logEl.classList.toggle('expanded'); logEl.scrollTop = 0; }
+    function roll(n,s) { return Array.from({length:n},()=>Math.floor(Math.random()*s)+1); }
+    function sum(a) { return a.reduce((x,y)=>x+y,0); }
+    function showFloat(idx, txt, isNegative = false) {
+        let cell = document.getElementById(`cell-${idx}`);
+        if(cell) {
+            let el = document.createElement('div'); 
+            el.className = isNegative ? 'floating-text float-down' : 'floating-text'; 
+            el.innerText = txt;
+            cell.appendChild(el); 
+            setTimeout(()=>el.remove(), 1000);
+            if (isNegative) {
+                let flash = document.createElement('div');
+                flash.className = 'flash-red-overlay';
+                cell.appendChild(flash);
+                setTimeout(()=>flash.remove(), 800);
+            }
+        }
+    }
+
+    function getAdjacents(idx) {
+        let r=Math.floor(idx/9), c=idx%9, res=[];
+        [[0,1],[0,-1],[1,0],[-1,0]].forEach(d => {
+            let nr=r+d[0], nc=c+d[1];
+            if(nr>=0 && nr<9 && nc>=0 && nc<9) res.push(nr*9+nc);
+        });
+        return res;
+    }
+    function get8Adjacents(idx) {
+        let r=Math.floor(idx/9), c=idx%9, res=[];
+        for(let dr=-1; dr<=1; dr++){
+            for(let dc=-1; dc<=1; dc++){
+                if(dr===0 && dc===0) continue;
+                let nr=r+dr, nc=c+dc;
+                if(nr>=0 && nr<9 && nc>=0 && nc<9) res.push(nr*9+nc);
+            }
+        }
+        return res;
+    }
+    
+    function getDist(p1, p2) { return Math.abs(Math.floor(p1/9)-Math.floor(p2/9)) + Math.abs(p1%9-p2%9); }
+
+    function gainFood(ent, amt, isSnatch = false) {
+        let actualGain = 0;
+        for(let i=0; i<amt; i++) {
+            if(ent.food < 3) { ent.food++; actualGain++; }
+        }
+        if(actualGain > 0) {
+            showFloat(ent.pos, `🍖`); 
+            if(!isSnatch) {
+                let adjs = getAdjacents(ent.pos);
+                adjs.forEach(idx => {
+                    let neighborId = mapData[idx].entityId;
+                    if(neighborId && neighborId !== ent.id) {
+                        let neighbor = entities.find(e => e.id === neighborId);
+                        if(neighbor && !neighbor.isDead && neighbor.triggerOrder.includes('snatch') && neighbor.food < 3) {
+                            log(`${neighbor.name} 🐿️ 奪取 ${ent.name} 🍖1`);
+                            loseFood(ent, 1);
+                            gainFood(neighbor, 1, true);
+                        }
+                    }
+                });
+            }
+        }
+        return actualGain;
+    }
+
+    function loseFood(ent, amt) {
+        let actualLoss = 0;
+        for(let i=0; i<amt; i++) {
+            if(ent.food > 0) { ent.food--; actualLoss++; }
+        }
+        if(actualLoss > 0) showFloat(ent.pos, `🍖`, true); 
+        return actualLoss;
+    }
+
+    function initGame() {
+        // Check for save game first
+        const hasSave = localStorage.getItem('hivemind_save_v1');
+        
+        if (hasSave) {
+            actionMenu.innerHTML = '';
+            
+            let btnContinue = document.createElement('button');
+            btnContinue.className = 'menu-btn important';
+            btnContinue.innerHTML = `<span>📂 繼續進度</span>`;
+            btnContinue.onclick = () => {
+                if(loadGame()) {
+                    // Logic to resume phase
+                    renderPhaseButton('next_phase'); // Show phase transition button to start the phase logic
+                    // Actually, if we loaded at phase start, we are in 'wait' state.
+                    // We should let the user click "Next Phase" to trigger the turn loop?
+                    // Or we can just auto-start the phase logic.
+                    // Given the request "return to progress", let's let them click to start the phase turns.
+                    // But wait, the save is AT start phase.
+                    // So we are effectively at the "Wait" state before turns start.
+                    // Let's manually trigger the turn start sequence.
+                    setTimeout(startNextTurn, 500); 
+                }
+            };
+            
+            let btnNew = document.createElement('button');
+            btnNew.className = 'menu-btn';
+            btnNew.innerHTML = `<span>✨ 開新局</span>`;
+            btnNew.onclick = () => {
+                if(confirm("確定要刪除進度並開新局嗎？")) {
+                    localStorage.removeItem('hivemind_save_v1');
+                    startNewGameProcess();
+                }
+            };
+            
+            actionMenu.appendChild(btnContinue);
+            actionMenu.appendChild(btnNew);
+            phaseText.innerText = "發現存檔";
+            turnText.innerText = "請選擇";
+            
+        } else {
+            startNewGameProcess();
+        }
+    }
+    
+    function startNewGameProcess() {
+        currentRound = 1; currentPhase = 'setup'; subPhase = 'wait';
+        window.currentPhaseId = "1-setup";
+        isGameOver = false;
+        surrenderState = false;
+        isFogMode = true; 
+        mapData = []; entities = []; turnOrder = []; evolveDeck = []; evolveDiscard = [];
+        gridEl.innerHTML = '<div id="fog-layer"></div>';
+        if(isFogMode) gridEl.classList.add('fog-active');
+        initEvolveDeck();
+        createMap(); 
+        setupEntities(); 
+        generateInitialFood(); 
+        renderGrid();
+        updateHUD();
+        phaseText.innerText = "ROUND 1 - 準備";
+        turnText.innerText = "請點擊開始";
+        renderPhaseButton('start');
+    }
+
+    function initEvolveDeck() {
+        evolveDeck = [];
+        const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
+        const consumables = [{t:'atk', n:'⚔️ 攻擊'},{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
+        consumables.forEach(c => add(c.t, 4, c.n));
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦎 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        heldCardsData.forEach(c => add(c.t, 1, c.n));
+        evolveDeck.sort(()=>Math.random()-0.5);
+    }
+
+    function generateSudokuMap() {
+        let nums = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5);
+        let map = [];
+        for(let r=0; r<9; r++) {
+            for(let c=0; c<9; c++) {
+                let baseVal = (c + r * 3 + Math.floor(r / 3)) % 9;
+                map.push(nums[baseVal]);
+            }
+        }
+        return map;
+    }
+
+    function createMap() {
+        let pool = Array(16).fill('hole').concat(Array(16).fill('rock')).concat(Array(17).fill('land'));
+        pool.sort(()=>Math.random()-0.5);
+        let sudokuNums = generateSudokuMap();
+        let idx = 0;
+        for(let i=0; i<81; i++) {
+            let r=Math.floor(i/9), c=i%9;
+            let type = (r===0||r===8||c===0||c===8) ? 'land' : pool[idx++];
+            let num = sudokuNums[i];
+            mapData.push({ index:i, row:r, col:c, type:type, number:num, hasFood:false, entityId:null });
+            let div = document.createElement('div');
+            div.className = `cell terrain-${type}`; 
+            div.id = `cell-${i}`;
+            div.onclick = () => onCellClick(i);
+            let numTag = document.createElement('div');
+            numTag.className = 'cell-number'; numTag.innerText = num;
+            div.appendChild(numTag);
+            if(type !== 'land') {
+                let tm = document.createElement('div'); tm.className='terrain-marker';
+                tm.innerText = (type==='hole') ? '🕳️' : '🪨';
+                div.appendChild(tm);
+            }
+            gridEl.appendChild(div);
+        }
+    }
+
+    function setupEntities() {
+        let cards = [{name:"日1夜5", d:1, n:5, special:false},{name:"日2夜4", d:2, n:4, special:false},{name:"日3夜3", d:3, n:3, special:false},{name:"日4夜2", d:4, n:2, special:false},{name:"日5夜1", d:5, n:1, special:false},{name:"特別", d:0, n:0, special:true}].sort(()=>Math.random()-0.5);
+        let starts = [0, 8, 72, 80].sort(()=>Math.random()-0.5);
+        let roles = [{id:'player', name:'玩家', type:'player'},{id:'ai1', name:'AI-1', type:'ai'},{id:'ai2', name:'AI-2', type:'ai'},{id:'ai3', name:'AI-3', type:'ai'}];
+        roles.forEach((r, i) => {
+            entities.push({
+                id: r.id, name: r.name, type: r.type, pos: starts[i], isDead: false,
+                maxHp: 2, hp: 2, armor: 0, ap: 0, food: 3, card: cards[i], 
+                atk:0, def:0, range:0, counter:0, dodge:0, 
+                speed:0, climb:0, dig:0, regen:0, fakeDeath:false,
+                movesFree: 0,
+                heldCards: [], triggerOrder: [], radiationLayers: 0, autotomyUsedPhase: null, feintUsedTurn: false     
+            });
+            mapData[starts[i]].entityId = r.id;
+        });
+    }
+
+    function generateInitialFood() {
+        let targets = [];
+        while(targets.length < 3) {
+            let n = Math.floor(Math.random()*9)+1;
+            if(!targets.includes(n)) targets.push(n);
+        }
+        log(`🍖 補給: ${targets.join(',')}`);
+        mapData.forEach(c => {
+            if(targets.includes(c.number) && !c.entityId && ![0,8,72,80].includes(c.index)) {
+                c.hasFood = true;
+            }
+        });
+    }
+
+    function handleMainButton() {
+        if(currentPhase === 'setup') { startPhase('day'); }
+        else if(subPhase === 'wait') { nextPhase(); }
+    }
+
+    function renderPhaseButton(state) {
+        actionMenu.innerHTML = '';
+        let btn = document.createElement('button');
+        btn.className = 'menu-btn important';
+        if(state === 'start') {
+            btn.innerHTML = `<span>▶ 開始遊戲</span>`;
+            btn.onclick = handleMainButton;
+        } else if (state === 'next_phase') {
+            let nextP = currentPhase === 'day' ? "進入夜階段" : "進入日階段";
+            btn.innerHTML = `<span>🌙 ${nextP}</span>`;
+            btn.onclick = handleMainButton;
+        } else {
+            actionMenu.innerHTML = `<div style="color:#666; font-size:12px;">處理中...</div>`;
+            return;
+        }
+        actionMenu.appendChild(btn);
+    }
+
+    function nextPhase() {
+        if(currentPhase === 'day') startPhase('night');
+        else { currentRound++; startPhase('day'); }
+    }
+
+    function startPhase(phaseName) {
+        currentPhase = phaseName;
+        window.currentPhaseId = currentRound + '-' + currentPhase; 
+        subPhase = 'wait';
+        renderPhaseButton('processing');
+        let pName = (phaseName === 'day') ? "🌞 日階段" : "🌛 夜階段";
+        phaseText.innerText = `R${currentRound} - ${pName}`;
+        log(`${pName}`);
+        
+        // Update Fog Style
+        const root = document.documentElement;
+        if(phaseName === 'day') {
+            root.style.setProperty('--fog-color', '#e3f1f2'); // UPDATED: Light cyan fog
+            root.style.setProperty('--fog-mask-start', '15%');
+            root.style.setProperty('--fog-mask-end', '30%');
+        } else {
+            root.style.setProperty('--fog-color', '#000');
+            root.style.setProperty('--fog-mask-start', '5%');
+            root.style.setProperty('--fog-mask-end', '15%');
+        }
+
+        let foodCount = mapData.filter(c=>c.hasFood).length;
+        if(foodCount < 10) {
+            let targets = [];
+            while(targets.length < 2) {
+                let n = Math.floor(Math.random()*9)+1;
+                if(!targets.includes(n)) targets.push(n);
+            }
+            log(`🍖 補給: ${targets.join(',')}`);
+            mapData.forEach(c => {
+                if(targets.includes(c.number) && !c.hasFood && !c.entityId && c.type!=='void' && ![0,8,72,80].includes(c.index)) {
+                    c.hasFood = true;
+                }
+            });
+        }
+        entities.forEach(e => {
+            if(e.isDead) { e.ap = 0; return; }
+            if(e.card.special) {
+                let rollAp = Math.floor(Math.random()*6)+1;
+                e.ap = rollAp;
+                log(`${e.name} 🎲 🔋:${rollAp}`);
+            } else {
+                e.ap = (currentPhase === 'day') ? e.card.d : e.card.n;
+            }
+        });
+        turnOrder = entities.filter(e => !e.isDead).sort((a, b) => {
+            if(b.ap !== a.ap) return b.ap - a.ap;
+            if(a.card.special && !b.card.special) return -1;
+            if(!a.card.special && b.card.special) return 1;
+            return a.id.localeCompare(b.id);
+        }).map(e => e.id);
+        currentTurnIndex = -1;
+        renderGrid(); updateHUD();
+        
+        // --- SAVE GAME HERE ---
+        saveGame();
+        // ----------------------
+
+        setTimeout(startNextTurn, 1000);
+    }
+
+    function startNextTurn() {
+        currentTurnIndex++;
+        if(currentTurnIndex >= turnOrder.length) {
+            activeEntity = null;
+            turnText.innerText = "階段結束";
+            renderPhaseButton('next_phase'); 
+            return;
+        }
+        let eid = turnOrder[currentTurnIndex];
+        activeEntity = entities.find(e => e.id === eid);
+        if(activeEntity.isDead) { startNextTurn(); return; }
+        turnText.innerText = `當前: ${activeEntity.name}`;
+        renderGrid(); updateHUD();
+        if(activeEntity.type !== 'player') {
+            renderActionMenu('wait', `${activeEntity.name} 行動中...`);
+        }
+        subPhase = 'turn_start';
+        handleTurnStartEffects(activeEntity);
+    }
+
+    function handleTurnStartEffects(ent) {
+        ent.movesFree = 0; 
+        ent.feintUsedTurn = false; 
+        ent.triggerOrder.forEach(effect => {
+            if (effect === 'speed') { ent.movesFree += ent.speed; }
+            if (effect === 'regeneration') {
+                if(ent.hp < ent.maxHp) {
+                    let healAmt = ent.maxHp - ent.hp;
+                    ent.hp += healAmt; 
+                    showFloat(ent.pos, `🪱`); 
+                    log(`${ent.name} 🪱 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+                }
+            }
+            if (effect === 'photosynthesis') {
+                if (currentPhase === 'day' && ent.food < 3) {
+                    log(`${ent.name} 🌻 🍖+1`);
+                    gainFood(ent, 1);
+                    showFloat(ent.pos, `🌻`); 
+                }
+            }
+            if (effect === 'daywalker') {
+                if (currentPhase === 'day') { ent.movesFree += 2; log(`${ent.name} 🦍 👟+2`); showFloat(ent.pos, `🦍`); } 
+            }
+            if (effect === 'nightstalker') {
+                if (currentPhase === 'night') { ent.movesFree += 2; log(`${ent.name} 🦉 👟+2`); showFloat(ent.pos, `🦉`); } 
+            }
+            if (effect === 'thigmotaxis') {
+                let r = Math.floor(ent.pos/9), c = ent.pos%9;
+                if(r===0 || r===8 || c===0 || c===8) {
+                    ent.movesFree += 2; log(`${ent.name} 🪳 👟+2`); showFloat(ent.pos, `🪳`); 
+                }
+            }
+            if (effect === 'marineSnow') {
+                if (Math.random() < 0.2) { 
+                    log(`${ent.name} 🪸 🍖+1`); 
+                    gainFood(ent, 1); 
+                    showFloat(ent.pos, `🪸`); 
+                }
+            }
+            
+            if (effect === 'radiation') {
+                let d20 = sum(roll(1, 20));
+                let bonus = Math.floor(ent.radiationLayers / 100);
+                let dmg = 1 + bonus;
+                if (ent.radiationLayers > d20) {
+                    let isHigh = ent.radiationLayers > 20; 
+                    let targets = isHigh ? get8Adjacents(ent.pos) : getAdjacents(ent.pos);
+                    let hit = false;
+                    targets.forEach(idx => {
+                        let targetId = mapData[idx].entityId;
+                        if(targetId && targetId !== ent.id) {
+                            let target = entities.find(e => e.id === targetId);
+                            if(target && !target.isDead) {
+                                applyDamage(target, dmg, ent, true, false); 
+                                if(isHigh && !target.triggerOrder.includes('radioactivePollution')) {
+                                    target.triggerOrder.push('radioactivePollution');
+                                    target.heldCards.push({type: 'radioactivePollution', name: '☢️ 放射性污染'});
+                                    log(`${target.name} 🧬☢️`); 
+                                }
+                                hit = true;
+                            }
+                        }
+                    });
+                    if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d20})`);
+                }
+            }
+
+            if (effect === 'radioactivePollution') {
+                ent.radiationLayers++;
+                showFloat(ent.pos, `☢️`); 
+            }
+        });
+        renderGrid(); updateHUD();
+        setTimeout(() => startEvolutionPhase(ent), 800);
+    }
+
+    function renderActionMenu(state, msg="") {
+        actionMenu.innerHTML = '';
+        if(state === 'wait') {
+            actionMenu.innerHTML = `<div style="color:#999; font-size:12px;">${msg || "等待回合..."}</div>`;
+            return;
+        }
+        let ent = activeEntity;
+        if(!ent || ent.type !== 'player') return;
+        if(state === 'evolution_check') {
+            actionMenu.innerHTML = `
+                <div style="color:#999; font-size:12px; margin-right: 5px;">是否🧬...</div>
+                <button class="menu-btn important" onclick="confirmEvolve(true)"><span>⭕ 是</span><span class="menu-cost">1AP 3🍖</span></button>
+                <button class="menu-btn" onclick="confirmEvolve(false)"><span>❌ 否</span><span class="menu-cost">跳過</span></button>
+            `;
+        }
+        else if(state === 'shop') {
+            let cards = window.currentDraw;
+            actionMenu.innerHTML = `<div style="color:#999; font-size:12px; margin-right: 5px;">選一張...</div>`;
+            cards.forEach((c, i) => {
+                let btn = document.createElement('button');
+                btn.className = 'menu-btn';
+                btn.innerHTML = `<span>${c.name}</span><span class="menu-cost">${HELD_CARDS.includes(c.type)?'持有':'消耗'}</span>`;
+                btn.onclick = () => playerSelectCard(i);
+                actionMenu.appendChild(btn);
+            });
+        }
+        else if(state === 'action') {
+            if(mapData[ent.pos].hasFood) {
+                let btn = document.createElement('button');
+                btn.className = 'menu-btn';
+                if(ent.food >= 3) {
+                    btn.innerHTML = `<span>😋 吃飽</span><span class="menu-cost">無法再吃</span>`;
+                    btn.disabled = true;
+                } else if(ent.ap >= 1) {
+                    btn.innerHTML = `<span>🍖 吃食物</span><span class="menu-cost">1 🔋</span>`;
+                    btn.onclick = () => handleAction('eat');
+                }
+                if(btn && !btn.disabled && ent.ap < 1) btn = null; 
+                if(btn) actionMenu.appendChild(btn);
+            }
+            if(ent.food < 3 && ent.ap >= 3) {
+                let btn = document.createElement('button');
+                btn.className = 'menu-btn';
+                btn.innerHTML = `<span>🥡 外賣</span><span class="menu-cost">3 🔋</span>`;
+                btn.onclick = () => handleAction('remote-eat');
+                actionMenu.appendChild(btn);
+            }
+            
+            let hasTargets = entities.some(t => !t.isDead && t.id !== ent.id && isAttackable(ent, t.pos));
+            if(ent.atk >= 1 && ent.range >= 1 && ent.ap >= 1 && hasTargets) {
+                let btn = document.createElement('button');
+                btn.className = 'menu-btn';
+                btn.innerHTML = `<span>⚔️ 攻擊</span><span class="menu-cost">1 🔋</span>`;
+                btn.onclick = () => handleAction('attack');
+                actionMenu.appendChild(btn);
+            }
+            if(ent.dig >= 2 && mapData[ent.pos].type === 'hole') {
+                let cost = (ent.dig>=4)?1 : (ent.dig>=3)?2 : 3;
+                if(ent.ap >= cost) {
+                    let btn = document.createElement('button');
+                    btn.className = 'menu-btn';
+                    btn.innerHTML = `<span>🌀 地遁</span><span class="menu-cost">${cost} 🔋</span>`;
+                    btn.onclick = () => enterTeleportMode(cost);
+                    actionMenu.appendChild(btn);
+                }
+            }
+            let hasRam = ent.heldCards.find(c => c.type === 'ram');
+            let hasRamTarget = entities.some(t => !t.isDead && t.id !== ent.id && getDist(ent.pos, t.pos) === 1);
+            if(hasRam && ent.range > 0 && ent.ap >= 2 && hasRamTarget) {
+                let btn = document.createElement('button');
+                btn.className = 'menu-btn skill';
+                btn.innerHTML = `<span>🐏 撞擊</span><span class="menu-cost">2 🔋/消耗</span>`;
+                btn.onclick = () => enterActiveSkillMode('ram', 2);
+                actionMenu.appendChild(btn);
+            }
+            if(ent.radiationLayers > 100 && ent.ap > 0) {
+                 let btn = document.createElement('button');
+                 btn.className = 'menu-btn skill';
+                 btn.innerHTML = `<span>🦖 原子吐息</span><span class="menu-cost">ALL 🔋</span>`;
+                 btn.onclick = () => enterActiveSkillMode('atomic_breath', ent.ap);
+                 actionMenu.appendChild(btn);
+            }
+            let endBtn = document.createElement('button');
+            endBtn.className = 'menu-btn';
+            endBtn.innerHTML = `<span>🛑 結束</span><span class="menu-cost">跳過</span>`;
+            endBtn.onclick = endTurn;
+            actionMenu.appendChild(endBtn);
+        }
+        else if(['combat', 'teleport', 'active_skill'].includes(state)) {
+             actionMenu.innerHTML = `<div style="color:#999; font-size:12px;">${msg}</div><button class="menu-btn" onclick="cancelMode()">取消</button>`;
+        }
+    }
+
+    window.cancelMode = function() {
+        subPhase = 'action';
+        log("取消操作");
+        renderGrid();
+        renderActionMenu('action');
+    }
+
+    window.activeSkillCost = 0;
+    window.activeSkillType = null;
+    function enterActiveSkillMode(skillType, cost) {
+        window.activeSkillType = skillType;
+        window.activeSkillCost = cost;
+        subPhase = 'active_skill';
+        let msg = skillType === 'ram' ? '選擇撞擊目標...' : '選擇原子吐息方向...';
+        log(`請選擇 ${msg}...`);
+        renderGrid();
+        renderActionMenu('active_skill', `${msg}`);
+    }
+
+    function startEvolutionPhase(ent) {
+        subPhase = 'evolution_check';
+        if(evolveDeck.length < 3 && evolveDiscard.length > 0) {
+             evolveDeck = evolveDeck.concat(evolveDiscard);
+             evolveDiscard = [];
+             evolveDeck.sort(()=>Math.random()-0.5);
+             log("洗牌");
+             updateHUD();
+        }
+        if(ent.ap >= 1 && ent.food >= 3 && evolveDeck.length > 0) {
+            if(ent.type === 'player') {
+                renderActionMenu('evolution_check');
+            } else {
+                setTimeout(() => performEvolution(ent), 1000);
+            }
+        } else {
+            startActionPhase(ent);
+        }
+    }
+
+    function confirmEvolve(yes) {
+        if(yes) openShop(activeEntity);
+        else startActionPhase(activeEntity);
+    }
+
+    function performEvolution(ent) { openShop(ent); }
+
+    function openShop(ent) {
+        if(evolveDeck.length < 3 && evolveDiscard.length > 0) {
+             evolveDeck = evolveDeck.concat(evolveDiscard);
+             evolveDiscard = [];
+             evolveDeck.sort(()=>Math.random()-0.5);
+             log("洗牌 (自動)");
+             updateHUD();
+        }
+
+        if(evolveDeck.length === 0) { log("牌庫已空"); startActionPhase(ent); return; }
+        let drawCount = Math.min(3, evolveDeck.length);
+        window.currentDraw = evolveDeck.splice(0, drawCount);
+        updateHUD(); 
+        if(ent.type === 'player') {
+            subPhase = 'shop';
+            renderActionMenu('shop');
+        } else {
+            let pick = HivemindAI.pickEvolutionCard(window.currentDraw, ent);
+            applyEvolution(ent, window.currentDraw[pick], pick);
+        }
+    }
+
+    function playerSelectCard(idx) {
+        if (!window.currentDraw) return;
+        applyEvolution(activeEntity, window.currentDraw[idx], idx);
+    }
+
+    function gainPassiveSkill(ent, card) {
+        if(card.type === 'atk') { ent.atk++; log(`${ent.name} ⚔️ Lv${ent.atk}`); }
+        if(card.type === 'def') { ent.def++; log(`${ent.name} 🛡️ Lv${ent.def}`); }
+        if(card.type === 'range') { 
+            if(ent.range < 2) { ent.range++; log(`${ent.name} 🏹 Lv${ent.range}`); }
+            else { ent.atk++; log(`${ent.name} 🏹(Max)→⚔️`); } 
+        }
+        if(card.type === 'hp') { ent.maxHp++; ent.hp++; log(`${ent.name} ❤️+1`); }
+        if(card.type === 'dodge') {
+            if(ent.triggerOrder.includes('gigantism')) { ent.maxHp++; ent.hp++; log(`${ent.name} 🦕 💨→❤️`); } 
+            else { ent.dodge++; log(`${ent.name} 💨 Lv${ent.dodge}`); }
+        }
+        if(card.type === 'counter') { ent.counter++; log(`${ent.name} 🔄 Lv${ent.counter}`); }
+        if(card.type === 'speed') { ent.speed++; log(`${ent.name} 🐎 Lv${ent.speed}`); }
+        if(card.type === 'climb') { ent.climb++; log(`${ent.name} 🧱 Lv${ent.climb}`); }
+        
+        if(card.type === 'gigantism') {
+            log(`${ent.name} 🦕 💨 → ❤️`);
+            if(ent.dodge > 0) {
+                ent.maxHp += ent.dodge; ent.hp += ent.dodge; ent.dodge = 0;
+            }
+        }
+        if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
+        if(card.type === 'regeneration') { ent.regen++; ent.maxHp++; ent.hp++; }
+        if(card.type === 'tonicImmobility') ent.fakeDeath = true;
+        if(card.type === 'dig') {
+            if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
+            else { log(`${ent.name} 🌌 → 🚫`); triggerVoidCollapse(); }
+        }
+        if (!ent.triggerOrder.includes(card.type)) { ent.triggerOrder.push(card.type); }
+    }
+
+    function applyEvolution(ent, card, pickIdx) {
+        ent.ap--; 
+        loseFood(ent, 3);
+        let unselected = window.currentDraw.filter((_, i) => i !== pickIdx);
+        evolveDiscard.push(...unselected);
+        
+        let emoji = card.name.split(' ')[0] || '❓';
+        
+        if(HELD_CARDS.includes(card.type)) {
+            ent.heldCards.push(card);
+            log(`${ent.name} 🧬 ${emoji}`);
+        } else {
+            evolveDiscard.push(card);
+            log(`${ent.name} 🧬 ${emoji}`);
+        }
+        
+        showFloat(ent.pos, emoji);
+        gainPassiveSkill(ent, card);
+        if(ent.triggerOrder.includes('molt')) {
+            ent.maxHp++;
+            log(`${ent.name} 🦗 🩶+1`);
+            showFloat(ent.pos, "🦗"); 
+        }
+        window.currentDraw = null;
+        renderActionMenu('wait', '進化中...');
+        renderGrid(); updateHUD();
+        
+        if (ent.type === 'player') {
+            setTimeout(() => startActionPhase(ent), 1000);
+        } else {
+            setTimeout(() => aiTurnLoop(ent), 1000);
+        }
+    }
+
+    function triggerVoidCollapse() {
+        let candidates = mapData.filter(c => c.type !== 'void' && getNonVoidNeighborCount(c.index) === 2);
+        if(candidates.length === 0) { return; }
+        let target = candidates[Math.floor(Math.random() * candidates.length)];
+        log(`${entities.find(e=>e.dig>=4)?.name || "虛空"} 🌌 → 🚫`);
+        turnToVoid(target.index);
+        cascadeVoid();
+    }
+
+    function cascadeVoid() {
+        let unstable = true;
+        while(unstable) {
+            let targets = mapData.filter(c => c.type !== 'void' && getNonVoidNeighborCount(c.index) <= 1);
+            if(targets.length > 0) {
+                targets.forEach(c => turnToVoid(c.index));
+            } else { unstable = false; }
+        }
+    }
+
+    function getNonVoidNeighborCount(idx) {
+        return getAdjacents(idx).filter(n => mapData[n].type !== 'void').length;
+    }
+
+    function turnToVoid(idx) {
+        mapData[idx].type = 'void';
+        mapData[idx].hasFood = false;
+        let victim = entities.find(e => e.pos === idx);
+        showFloat(idx, "🚫", true); 
+        if(victim && !victim.isDead) { 
+            log(`${victim.name} 🚫 落入虛空`);
+            victimKill(victim, null); 
+        } 
+    }
+
+    function victimKill(victim, killer = null) {
+        victim.isDead = true;
+        victim.hp = 0;
+        victim.armor = 0; 
+        mapData[victim.pos].entityId = null;
+        log(`${victim.name} 💀`);
+        showFloat(victim.pos, "💀", true); 
+        if(victim.triggerOrder.includes('explode')) {
+            log(`${victim.name} 🐋 💥2`);
+            let targets = get8Adjacents(victim.pos);
+            targets.forEach(idx => {
+                let tid = mapData[idx].entityId;
+                if(tid) {
+                    let tEnt = entities.find(e => e.id === tid);
+                    if(tEnt && !tEnt.isDead) { applyDamage(tEnt, 2, victim, true, false); }
+                }
+            });
+        }
+        let rawCards = victim.heldCards.slice();
+        
+        let cardsDropped = rawCards.filter(c => c.type !== 'radioactivePollution');
+        
+        if(killer && killer.triggerOrder.includes('parasite') && !killer.isDead) {
+            log(`${killer.name} 🦠奪卡`);
+            showFloat(killer.pos, "🦠");
+            victim.heldCards = []; 
+            cardsDropped.forEach(c => {
+                killer.heldCards.push(c);
+                gainPassiveSkill(killer, c);
+            });
+        } else {
+            if(cardsDropped.length > 0) {
+                log(`${victim.name} 掉落了 ${cardsDropped.length} 張卡`);
+                evolveDiscard.push(...cardsDropped);
+                victim.heldCards = [];
+            } else { victim.heldCards = []; }
+        }
+    }
+
+    function startActionPhase(ent) {
+        subPhase = 'action';
+        if(ent.type !== 'player' && ent.ap <= 0) { endTurn(); return; }
+        if(ent.type === 'player') {
+            log("請行動...");
+            renderActionMenu('action');
+            renderGrid();
+        } else {
+            renderActionMenu('wait', `${ent.name} 行動中...`);
+            setTimeout(() => aiTurnLoop(ent), 800);
+        }
+    }
+
+    function enterTeleportMode(cost) {
+        window.teleportCost = cost;
+        subPhase = 'teleport';
+        log("選擇傳送目標地洞...");
+        renderGrid();
+        renderActionMenu('teleport', '選擇地洞中...');
+    }
+
+    function endTurn() {
+        renderActionMenu('wait');
+        subPhase = 'wait';
+        let ent = activeEntity;
+        if (ent) {
+            ent.movesFree = 0; 
+            ent.triggerOrder.forEach(effect => {
+                if (effect === 'pachyderms') {
+                    if(ent.armor < 6) {
+                        ent.armor++; log(`${ent.name} 🦛 💙+1`); showFloat(ent.pos, "💙");
+                    }
+                }
+                if (effect === 'regeneration') {
+                    if(!ent.isDead && ent.hp < ent.maxHp) {
+                         let healAmt = ent.maxHp - ent.hp; ent.hp += healAmt; 
+                         showFloat(ent.pos, `🪱`); log(`${ent.name} 🪱 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+                    }
+                }
+                
+                if (effect === 'hibernation') {
+                    if (ent.ap > 0) {
+                        let consumed = ent.ap;
+                        ent.ap = 0; 
+                        let healAmt = Math.min(consumed, ent.maxHp - ent.hp);
+                        if (healAmt > 0) { ent.hp += healAmt; showFloat(ent.pos, `💚`); }
+                        log(`${ent.name} 💤 🔋-${consumed} ❤️+${healAmt}`);
+                    }
+                }
+                
+                if (effect === 'diapause') {
+                    if (ent.food === 0) {
+                        let adjs = getAdjacents(ent.pos);
+                        let hasFoodNear = adjs.some(idx => mapData[idx].hasFood) || mapData[ent.pos].hasFood;
+                        if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+1 (${ent.food+1}/3)`); gainFood(ent, 1); showFloat(ent.pos, `🐞`); }
+                    }
+                }
+                if (effect === 'spore') {
+                    let adjs = getAdjacents(ent.pos);
+                    let hit = false;
+                    adjs.forEach(idx => {
+                        let targetId = mapData[idx].entityId;
+                        if(targetId && targetId !== ent.id) {
+                            let target = entities.find(e => e.id === targetId);
+                            if(target && !target.isDead && target.ap > 0) {
+                                target.ap--; showFloat(target.pos, "🔋", true); hit = true;
+                            }
+                        }
+                    });
+                    if(hit) log(`${ent.name} 🍄 周圍敵人 🔋-1`);
+                }
+                
+                if (effect === 'radiation') {
+                     ent.radiationLayers++;
+                     showFloat(ent.pos, `☢️`);
+                }
+                
+                if (effect === 'radioactivePollution') {
+                    let d20 = sum(roll(1, 20));
+                    let bonus = Math.floor(ent.radiationLayers / 100);
+                    let dmg = 1 + bonus;
+                    if (ent.radiationLayers > d20) {
+                        let isHigh = ent.radiationLayers > 20; 
+                        let targets = isHigh ? get8Adjacents(ent.pos) : getAdjacents(ent.pos);
+                        let hit = false;
+                        targets.forEach(idx => {
+                            let targetId = mapData[idx].entityId;
+                            if(targetId && targetId !== ent.id) {
+                                let target = entities.find(e => e.id === targetId);
+                                if(target && !target.isDead) {
+                                    applyDamage(target, dmg, ent, true, false);
+                                    if(isHigh && !target.triggerOrder.includes('radioactivePollution')) {
+                                        target.triggerOrder.push('radioactivePollution');
+                                        target.heldCards.push({type: 'radioactivePollution', name: '☢️ 放射性污染'});
+                                        log(`${target.name} 🧬☢️`);
+                                    }
+                                    hit = true;
+                                }
+                            }
+                        });
+                        if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d20})`);
+                        applyDamage(ent, 1, ent, true, false);
+                        log(`${ent.name} ☢️ ❤️-1`);
+                    }
+                }
+            });
+        }
+        renderGrid(); updateHUD();
+        checkWinCondition();
+        setTimeout(startNextTurn, 500);
+    }
+
+    function checkWinCondition() {
+        if(isGameOver) return;
+        let player = entities.find(e => e.id === 'player');
+        let ais = entities.filter(e => e.type === 'ai' && !e.isDead);
+        
+        if(player.isDead) { 
+            isGameOver = true;
+            showEndGameModal('defeat');
+        } else if(ais.length === 0) { 
+            isGameOver = true;
+            showEndGameModal('victory');
+        }
+    }
+
+    function showEndGameModal(result) {
+        currentStatsEntityId = 'player';
+        modalOverlay.style.display = 'flex';
+        renderStatsContent();
+    }
+
+    function onCellClick(idx) {
+        if(!['action', 'combat', 'teleport', 'active_skill'].includes(subPhase)) return;
+        let ent = activeEntity;
+        if(!ent || ent.id !== 'player') return;
+
+        if(subPhase === 'teleport') {
+            if(mapData[idx].type === 'hole' && !mapData[idx].entityId && idx !== ent.pos) {
+                mapData[ent.pos].entityId = null;
+                mapData[idx].entityId = ent.id;
+                let oldR = Math.floor(ent.pos/9), oldC = ent.pos%9;
+                ent.pos = idx;
+                let newR = Math.floor(idx/9), newC = idx%9;
+                
+                log(`${ent.name} 🌀 [${oldR},${oldC}]→[${newR},${newC}]`);
+                
+                if(ent.triggerOrder.includes('filterfeed') && mapData[idx].hasFood && ent.food < 3) {
+                    if(Math.random() < 0.4) {
+                        log(`${ent.name} 🦪 🍖+1 (${ent.food+1}/3)`);
+                        mapData[idx].hasFood = false;
+                        gainFood(ent, 1);
+                    }
+                }
+                ent.ap -= window.teleportCost;
+                showFloat(idx, "🌀");
+                subPhase = 'action';
+                document.querySelectorAll('.highlight-teleport').forEach(e=>e.classList.remove('highlight-teleport'));
+                renderGrid(); updateHUD(); startActionPhase(ent);
+            }
+            return;
+        }
+
+        if(subPhase === 'active_skill') {
+            if(window.activeSkillType === 'ram') {
+                let dist = getDist(ent.pos, idx);
+                if(dist === 1 && mapData[idx].entityId) {
+                    let target = entities.find(e => e.id === mapData[idx].entityId);
+                    log(`${ent.name} 🐏 撞擊 ${target.name}`);
+                    ent.ap -= window.activeSkillCost;
+                    
+                    let cardIdx = ent.heldCards.findIndex(c => c.type === 'ram');
+                    if(cardIdx !== -1) evolveDiscard.push(ent.heldCards.splice(cardIdx, 1)[0]);
+                    
+                    let atkR = Math.floor(ent.pos / 9), atkC = ent.pos % 9;
+                    let tgtR = Math.floor(target.pos / 9), tgtC = target.pos % 9;
+                    let dr = tgtR - atkR, dc = tgtC - atkC;
+                    let destR = tgtR + dr, destC = tgtC + dc;
+                    let blocked = false;
+                    let destIdx = destR * 9 + destC;
+                    if(destR < 0 || destR > 8 || destC < 0 || destC > 8) { blocked = true; } 
+                    else {
+                        let destCell = mapData[destIdx];
+                        if(destCell.entityId) blocked = true;
+                        if(!blocked && destCell.type !== 'void') {
+                            if(destCell.type === 'rock' && target.climb < 1) blocked = true;
+                            if(destCell.type === 'hole' && target.dig < 1) blocked = true;
+                        }
+                        if(!blocked) {
+                            mapData[target.pos].entityId = null;
+                            mapData[destIdx].entityId = target.id;
+                            target.pos = destIdx;
+                            log(`${target.name} 🔙 被擊退`);
+                            if(destCell.type === 'void') {
+                                turnToVoid(destIdx);
+                            }
+                        }
+                    }
+                    if(blocked) {
+                        applyDamage(target, 1, ent, true, false);
+                        log(`${ent.name} 🐏 ${target.name} (💥1)`);
+                    }
+                    subPhase = 'action';
+                    renderGrid(); updateHUD(); startActionPhase(ent);
+                } else log("目標不在相鄰一格內");
+            } 
+            
+            else if(window.activeSkillType === 'atomic_breath') {
+                let r1 = Math.floor(ent.pos / 9), c1 = ent.pos % 9;
+                let r2 = Math.floor(idx / 9), c2 = idx % 9;
+                let dr = Math.sign(r2 - r1);
+                let dc = Math.sign(c2 - c1);
+                
+                if (dr === 0 && dc === 0) return;
+                
+                let apCost = window.activeSkillCost;
+                ent.ap = 0;
+                log(`${ent.name} 🦖 原子吐息 (🔋${apCost})`);
+                
+                for(let i=1; i<=apCost; i++) {
+                    let nr = r1 + dr*i;
+                    let nc = c1 + dc*i;
+                    if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                        let targetPos = nr*9 + nc;
+                        let targetId = mapData[targetPos].entityId;
+                        if(targetId) {
+                            let target = entities.find(e => e.id === targetId);
+                            if(target && !target.isDead) {
+                                let dmg = apCost + 1 - i;
+                                if(dmg > 0) {
+                                    applyDamage(target, dmg, ent, true, false);
+                                    log(`命中 ${target.name} (💥${dmg})`);
+                                }
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                subPhase = 'action';
+                renderGrid(); updateHUD(); startActionPhase(ent);
+            }
+            return;
+        }
+
+        if(subPhase === 'combat') {
+            if(mapData[idx].entityId && mapData[idx].entityId !== ent.id) {
+                if(isAttackable(ent, idx)) {
+                    let target = entities.find(e => e.id === mapData[idx].entityId);
+                    subPhase = 'action'; resolveCombat(ent, target);
+                } else log("目標不合法");
+            } else { cancelMode(); }
+            return;
+        }
+
+        if(subPhase === 'action') {
+            if(mapData[idx].entityId) return; 
+            let dist = getDist(ent.pos, idx);
+            if(dist === 1 && isValidMove(ent, idx)) {
+                let cost = 1;
+                let moveType = "";
+                if(ent.movesFree > 0) { cost = 0; ent.movesFree--; moveType = " 👟"; }
+                if(ent.ap >= cost) {
+                    mapData[ent.pos].entityId = null;
+                    mapData[idx].entityId = ent.id;
+                    let oldR = Math.floor(ent.pos/9), oldC = ent.pos%9;
+                    ent.pos = idx;
+                    let newR = Math.floor(idx/9), newC = idx%9;
+                    
+                    log(`${ent.name}${moveType} [${oldR},${oldC}]→[${newR},${newC}]`);
+                    
+                    if(ent.triggerOrder.includes('filterfeed') && mapData[idx].hasFood && ent.food < 3) {
+                        if(Math.random() < 0.4) {
+                            log(`${ent.name} 🦪 🍖+1 (${ent.food+1}/3)`);
+                            mapData[idx].hasFood = false;
+                            gainFood(ent, 1);
+                        }
+                    }
+                    ent.ap -= cost;
+                    renderGrid(); updateHUD(); startActionPhase(ent);
+                } 
+            }
+        }
+    }
+
+    function handleAction(type) {
+        let ent = activeEntity;
+        if(type === 'eat') {
+            ent.ap--; mapData[ent.pos].hasFood = false;
+            let actualGain = gainFood(ent, 1);
+            if(actualGain > 0) {
+                log(`${ent.name} 😋 🍖+1 (${ent.food}/3)`);
+            }
+            renderGrid(); updateHUD(); startActionPhase(ent);
+        }
+        else if(type === 'remote-eat') {
+            log(`${ent.name} 🥡 🔋-3`);
+            ent.ap -= 3; 
+            let actualGain = gainFood(ent, 1);
+            if(actualGain > 0) {
+                log(`${ent.name} 🥡 🍖+1 (${ent.food}/3)`);
+            }
+            renderGrid(); updateHUD(); startActionPhase(ent);
+        }
+        else if(type === 'attack') {
+            subPhase = 'combat'; log("選擇目標 (點擊紅色格子)..."); 
+            renderGrid(); renderActionMenu('combat', '選擇攻擊目標中...');
+        }
+    }
+
+    function formatRollDetails(breakdown, rolls) {
+        let parts = [];
+        let currentIndex = 0;
+        let totalSum = 0;
+        breakdown.forEach(item => {
+            if (item.val > 0) {
+                let currentRolls = rolls.slice(currentIndex, currentIndex + item.val);
+                let currentSum = currentRolls.reduce((a, b) => a + b, 0);
+                parts.push(`${item.source}<small>${item.val}🎲(${currentSum})</small>`);
+                currentIndex += item.val;
+                totalSum += currentSum;
+            }
+        });
+        return parts.join(' + ') + ` = <b>${totalSum}</b>`;
+    }
+
+    function getAtkDice(atkEnt, defEnt) {
+        let total = atkEnt.atk;
+        let breakdown = [{source: '⚔️', val: atkEnt.atk}];
+        if(atkEnt.triggerOrder.includes('ambush') && mapData[atkEnt.pos].type === 'hole') { 
+            total += 2; breakdown.push({source: '🦞', val: 2});
+        }
+        if(atkEnt.triggerOrder.includes('foodGuard') && mapData[atkEnt.pos].hasFood) { 
+            total += 2; breakdown.push({source: '🐕', val: 2});
+        }
+        if(atkEnt.triggerOrder.includes('dive') && mapData[atkEnt.pos].type === 'rock') { 
+            total += 2; breakdown.push({source: '🦅', val: 2});
+        }
+        if(atkEnt.triggerOrder.includes('pounce')) {
+            let hasDist2Entity = entities.some(e => !e.isDead && e.id !== atkEnt.id && getDist(atkEnt.pos, e.pos) === 2);
+            if(hasDist2Entity) { total += 2; breakdown.push({source: '🐅', val: 2}); }
+        }
+        return { total: Math.max(0, total), breakdown: breakdown };
+    }
+
+    function getDefDice(defEnt, atkEnt) {
+        let total = defEnt.def;
+        let breakdown = [{source: '🛡️', val: defEnt.def}];
+        if(defEnt.triggerOrder.includes('shrink') && defEnt.ap > 0) { 
+            total += 3; breakdown.push({source: '🐢', val: 3});
+        }
+        if(defEnt.triggerOrder.includes('eyespots') && defEnt.hp > 3) { 
+            total += 3; breakdown.push({source: '🦚', val: 3});
+        }
+        return { total: Math.max(0, total), breakdown: breakdown };
+    }
+    
+    function getDodgeDice(dodgeEnt, atkEnt) {
+        if(dodgeEnt.triggerOrder.includes('gigantism')) return { total: 0, breakdown: [{source: '🦕', val: 0}] }; 
+        let total = dodgeEnt.dodge;
+        let breakdown = [{source: '💨', val: dodgeEnt.dodge}];
+        if(dodgeEnt.triggerOrder.includes('mimicry')) {
+            let cType = mapData[dodgeEnt.pos].type;
+            if(cType === 'rock' || cType === 'land') {
+                total++; breakdown.push({source: '🦎', val: 1});
+            }
+        }
+        if(dodgeEnt.triggerOrder.includes('burrow') && mapData[dodgeEnt.pos].type === 'hole') { 
+            total += 3; breakdown.push({source: '🦡', val: 3});
+        }
+        if(dodgeEnt.triggerOrder.includes('eyespots') && dodgeEnt.hp > 3) { 
+            total += 3; breakdown.push({source: '🦚', val: 3});
+        }
+        return { total: Math.max(0, total), breakdown: breakdown };
+    }
+
+    function getCounterDice(counterEnt, targetEnt) {
+        let total = counterEnt.counter;
+        let breakdown = [{source: '🔄', val: counterEnt.counter}];
+        return { total: Math.max(0, total), breakdown: breakdown };
+    }
+
+    function opposedRoll(diceA, sidesA, diceB, sidesB) {
+        if(diceA <= 0 && diceB <= 0) return { winner: 'tie', rollsA: [], sumA: 0, rollsB: [], sumB: 0 };
+        let rollsA, sumA, rollsB, sumB;
+        let failsafe = 0;
+        do {
+            rollsA = roll(diceA, sidesA); sumA = sum(rollsA);
+            rollsB = roll(diceB, sidesB); sumB = sum(rollsB);
+            failsafe++;
+        } while (sumA === sumB && failsafe < 100);
+        return { winner: sumA > sumB ? 'atk' : 'def', rollsA: rollsA, sumA: sumA, rollsB: rollsB, sumB: sumB };
+    }
+
+    function resolveCombat(atk, def) {
+        atk.ap--; 
+        let logContent = `<div class="combat-log">`;
+        logContent += `<div class="combat-header">${getEntityIcon(atk)} ⚔️ ${getEntityIcon(def)}</div>`;
+        let dist = getDist(atk.pos, def.pos);
+        let atkData = getAtkDice(atk, def);
+        let dodgeData = getDodgeDice(def, atk);
+        let defData = getDefDice(def, atk);
+        
+        logContent += `<div class="combat-phase"><span class="phase-tag">1️⃣ 閃避</span></div>`;
+        let dodgeResult = 'atk';
+        let isColloid = def.triggerOrder.includes('colloid') && dist > 1;
+        
+        if (isColloid) {
+            dodgeResult = 'def';
+            logContent += `<div class="combat-detail">🪼 膠體 (距離>1) ➔ 必定閃避</div>`;
+            showFloat(def.pos, "🪼");
+        } else {
+            let rollResult = opposedRoll(atkData.total, 6, dodgeData.total, 6);
+            dodgeResult = rollResult.winner;
+            let atkStr = formatRollDetails(atkData.breakdown, rollResult.rollsA);
+            let defStr = formatRollDetails(dodgeData.breakdown, rollResult.rollsB);
+            logContent += `<div class="combat-roll atk">${atkStr}</div>`;
+            logContent += `<div class="combat-roll def">${defStr}</div>`;
+            let compareStr = `${rollResult.sumA} ${dodgeResult === 'atk' ? '>' : '≤'} ${rollResult.sumB}`;
+            let resultClass = dodgeResult === 'atk' ? 'fail' : 'success';
+            let resultText = dodgeResult === 'atk' ? '💨 閃避失敗' : '💨 閃避成功';
+            logContent += `<div class="combat-result ${resultClass}">${compareStr} ➔ ${resultText}</div>`;
+        }
+
+        let finalOutcome = ""; 
+        if (dodgeResult === 'def') {
+            finalOutcome = "💨 閃避";
+            if(atk.triggerOrder.includes('feint') && !atk.feintUsedTurn) {
+                atk.ap++; atk.feintUsedTurn = true;
+                logContent += `<div class="combat-note">${atk.name} 🐆 🔋+1</div>`;
+                showFloat(atk.pos, "🐆");
+            }
+        } else {
+            logContent += `<div class="combat-phase"><span class="phase-tag">2️⃣ 防禦</span></div>`;
+            let rollResult = opposedRoll(atkData.total, 6, defData.total, 6);
+            let defResult = rollResult.winner;
+            let atkStr = formatRollDetails(atkData.breakdown, rollResult.rollsA);
+            let defStr = formatRollDetails(defData.breakdown, rollResult.rollsB);
+            logContent += `<div class="combat-roll atk">${atkStr}</div>`;
+            logContent += `<div class="combat-roll def">${defStr}</div>`;
+            let compareStr = `${rollResult.sumA} ${defResult === 'atk' ? '>' : '≤'} ${rollResult.sumB}`;
+            if (defResult === 'def') {
+                logContent += `<div class="combat-result success">${compareStr} ➔ 🛡️ 防禦成功</div>`;
+                showFloat(def.pos, "🛡️");
+                finalOutcome = "🛡️ 格擋";
+            } else {
+                let hitMsg = def.armor > 0 ? "💥 命中 (-1💙)" : "💥 命中 (-1HP)";
+                logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
+                applyDamage(def, 1, atk, false, true);
+                finalOutcome = "💥 命中";
+            }
+        }
+        
+        if(!def.isDead && def.counter > 0) {
+             let check = Math.floor(Math.random()*6)+1;
+             if(def.counter >= check) {
+                logContent += `<div class="combat-phase"><span class="phase-tag">🔄 反擊</span></div>`;
+                logContent += `<div class="combat-note">🔄 反擊判定: Lv${def.counter} ≥ 🎲${check} (成功)</div>`;
+                let counterData = getCounterDice(def, atk);
+                let atkDodgeData = getDodgeDice(atk, def); 
+                let atkDefData = getDefDice(atk, def);     
+                let cDodgeResultData = opposedRoll(counterData.total, 6, atkDodgeData.total, 4);
+                let cAtkStr = formatRollDetails(counterData.breakdown, cDodgeResultData.rollsA);
+                let cDefStr = formatRollDetails(atkDodgeData.breakdown, cDodgeResultData.rollsB);
+                logContent += `<div class="combat-roll atk">${cAtkStr} (d6)</div>`;
+                logContent += `<div class="combat-roll def">${cDefStr} <small>(d4)</small></div>`;
+                let cDodgeResult = cDodgeResultData.winner;
+                if(cDodgeResult === 'def') {
+                    logContent += `<div class="combat-result success">攻擊者 💨 閃過反擊</div>`;
+                } else {
+                    logContent += `<div class="combat-note">➔ 進入反擊防禦判定</div>`;
+                    let cDefResultData = opposedRoll(counterData.total, 6, atkDefData.total, 4);
+                    let cAtkStr2 = formatRollDetails(counterData.breakdown, cDefResultData.rollsA);
+                    let cDefStr2 = formatRollDetails(atkDefData.breakdown, cDefResultData.rollsB);
+                    logContent += `<div class="combat-roll atk">${cAtkStr2} (d6)</div>`;
+                    logContent += `<div class="combat-roll def">${cDefStr2} <small>(d4)</small></div>`;
+                    let cDefResult = cDefResultData.winner;
+                    if(cDefResult === 'def') {
+                        logContent += `<div class="combat-result success">攻擊者 🛡️ 擋下反擊</div>`;
+                    } else {
+                        if(atk.triggerOrder.includes('strangle') && def.ap < atk.ap) {
+                            logContent += `<div class="combat-result success">${atk.name} 🐍 免疫反擊</div>`;
+                        } else {
+                            let counterHitMsg = atk.armor > 0 ? "💥 被反擊受傷 (-1💙)" : "💥 被反擊受傷 (-1HP)";
+                            logContent += `<div class="combat-result fail">${counterHitMsg}</div>`;
+                            applyDamage(atk, 1, def, false, false);
+                        }
+                    }
+                }
+             }
+        }
+        
+        if(def.triggerOrder.includes('web') && dist === 1) {
+            if(atk.ap > 0) {
+                atk.ap--; 
+                logContent += `<div class="combat-note">${def.name} 🕷️ ${atk.name} 🔋-1</div>`;
+                showFloat(atk.pos, "🕷️"); 
+            }
+        }
+        logContent += `</div>`; 
+        logHTML(logContent);
+        renderGrid(); updateHUD();
+        if(atk.type === 'ai') {
+            if(atk.ap <= 0 && atk.movesFree <= 0) setTimeout(endTurn, 800);
+            else setTimeout(() => aiTurnLoop(atk), 800);
+        } else { startActionPhase(atk); }
+    }
+
+    function applyDamage(target, amt, source = null, isFixed = false, isAttackHit = false) {
+        let remainingDmg = amt;
+        if (isFixed && target.triggerOrder.includes('colloid') && source !== null) {
+            if (getDist(target.pos, source.pos) > 1) {
+                remainingDmg = Math.max(0, remainingDmg - 1);
+                if (remainingDmg === 0) { showFloat(target.pos, "🪼"); return; }
+            }
+        }
+        if (target.armor >= remainingDmg) {
+            target.armor -= remainingDmg; showFloat(target.pos, `💙`, true); return;
+        } else {
+            remainingDmg -= target.armor; target.armor = 0;
+        }
+        let intendedHp = target.hp - remainingDmg;
+        
+        if (isAttackHit && source && source.triggerOrder.includes('devour') && intendedHp <= 1) {
+            log(`${source.name} 🦈 斬殺!`);
+            showFloat(target.pos, "🦈"); target.hp = 0; victimKill(target, source); return;
+        }
+        
+        let isFatal = intendedHp <= 0;
+        if (isFatal && target.triggerOrder.includes('autotomy')) {
+            if (target.food >= 1 && target.autotomyUsedPhase !== window.currentPhaseId) {
+                loseFood(target, 1);
+                target.autotomyUsedPhase = window.currentPhaseId;
+                log(`${target.name} 🦎 自割 (🍖-1)`);
+                showFloat(target.pos, "🦎"); return; 
+            }
+        }
+        if (isFatal && target.fakeDeath) {
+            target.fakeDeath = false; showFloat(target.pos, "🐀"); log(`${target.name} 🐀 假死`);
+            let fdIndex = target.heldCards.findIndex(c => c.type === 'tonicImmobility');
+            if(fdIndex !== -1) {
+                let card = target.heldCards.splice(fdIndex, 1)[0];
+                evolveDiscard.push(card);
+            }
+            target.hp = Math.min(target.hp + 1, target.maxHp); return; 
+        }
+        target.hp -= remainingDmg; showFloat(target.pos, `💥`, true); 
+        if (remainingDmg > 0 && target.triggerOrder.includes('stinkGland') && source && !source.isDead) {
+            log(`${target.name} 🦨 (${source.name} 🍖-1)`); loseFood(source, 1);
+        }
+        if(target.hp <= 0) { victimKill(target, source); } 
+    }
+
+    function isAttackable(atk, tPos) {
+        let dist = getDist(atk.pos, tPos);
+        if(dist > atk.range) return false;
+        let t = entities.find(e => e.id === mapData[tPos].entityId);
+        if(!t) return false;
+        if(t.triggerOrder.includes('mimicry') && dist > 1) {
+            let tType = mapData[tPos].type;
+            if(tType === 'rock' || tType === 'land') return false;
+        }
+        if(mapData[tPos].type === 'rock' && t.climb > atk.climb) return false; 
+        if(mapData[tPos].type === 'rock' && atk.climb < 1) return false;
+        if(mapData[tPos].type === 'hole' && atk.dig < 1) return false;
+        return true;
+    }
+
+    function isValidMove(ent, idx) {
+        let c = mapData[idx];
+        if(c.type === 'void' || c.entityId) return false;
+        if(c.type === 'rock' && ent.climb < 1) return false;
+        if(c.type === 'hole' && ent.dig < 1) return false;
+        return true;
+    }
+
+    function renderGrid() {
+        document.querySelectorAll('.highlight-move, .highlight-attack, .highlight-teleport').forEach(el => {
+            el.className = 'cell';
+            let idx = parseInt(el.id.split('-')[1]);
+            if(mapData[idx].type === 'void') el.classList.add('terrain-void');
+        });
+        document.querySelectorAll('.entity, .entity-info, .food').forEach(e=>e.remove());
+        
+        // Update fog position
+        let player = entities.find(e => e.id === 'player');
+        if (player) {
+            const r = Math.floor(player.pos / 9);
+            const c = player.pos % 9;
+            const x = (c + 0.5) / 9 * 100;
+            const y = (r + 0.5) / 9 * 100;
+            document.getElementById('grid').style.setProperty('--fog-x', `${x}%`);
+            document.getElementById('grid').style.setProperty('--fog-y', `${y}%`);
+        }
+
+        mapData.forEach(c => {
+            let div = document.getElementById(`cell-${c.index}`);
+            let terrainMarker = div.querySelector('.terrain-marker');
+            if(terrainMarker) {
+                if(c.entityId) terrainMarker.classList.add('corner');
+                else terrainMarker.classList.remove('corner');
+            }
+            if(c.hasFood) { 
+                let f = document.createElement('div'); f.className='food'; f.innerText='🍖'; 
+                if(c.entityId) f.classList.add('corner');
+                div.appendChild(f); 
+            }
+            if(c.entityId) {
+                let e = entities.find(x => x.id === c.entityId);
+                let displayChar = getEntityIcon(e);
+                let roleClass = 'player';
+                if (e.id === 'ai1') roleClass = 'ai1';
+                if (e.id === 'ai2') roleClass = 'ai2';
+                if (e.id === 'ai3') roleClass = 'ai3';
+                let el = document.createElement('div');
+                el.className = `entity ${roleClass} ${e.id===activeEntity?.id?'active-turn':''} ${e.isDead?'dead':''}`;
+                el.innerText = displayChar;
+                div.appendChild(el);
+            }
+            if(c.type === 'void') div.className = 'cell terrain-void';
+        });
+        if(activeEntity?.id === 'player' && !activeEntity.isDead) {
+            if(subPhase === 'action') {
+                if (activeEntity.ap >= 1 || activeEntity.movesFree > 0) {
+                    getAdjacents(activeEntity.pos).forEach(idx => {
+                        if(isValidMove(activeEntity, idx)) document.getElementById(`cell-${idx}`).classList.add('highlight-move');
+                    });
+                }
+            } else if(subPhase === 'combat') {
+                entities.forEach(e => {
+                    if(!e.isDead && e.id !== 'player' && isAttackable(activeEntity, e.pos)) document.getElementById(`cell-${e.pos}`).classList.add('highlight-attack');
+                });
+            } else if(subPhase === 'teleport') {
+                mapData.forEach(c => {
+                    if(c.type === 'hole' && !c.entityId && c.index !== activeEntity.pos) document.getElementById(`cell-${c.index}`).classList.add('highlight-teleport');
+                });
+            } else if(subPhase === 'active_skill' && window.activeSkillType === 'ram') {
+                getAdjacents(activeEntity.pos).forEach(idx => {
+                    if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
+                });
+            }
+        }
+        renderStatsContent();
+    }
+
+    function updateHUD() {
+        document.getElementById('deck-count').innerText = evolveDeck.length;
+        document.getElementById('discard-count').innerText = evolveDiscard.length;
+        let bar = document.getElementById('turn-order-bar');
+        bar.innerHTML = turnOrder.map((id, i) => {
+            let e = entities.find(x => x.id === id);
+            let apIcon = e.card.special ? '🎲' : '🔋';
+            let hpText = e.armor > 0 ? `${e.hp}+💙${e.armor}` : e.hp;
+            let borderColor = '#000';
+            if (e.id === 'player') borderColor = 'var(--c-blue)';
+            if (e.id === 'ai1') borderColor = 'var(--c-red)';
+            if (e.id === 'ai2') borderColor = 'var(--c-yellow)';
+            if (e.id === 'ai3') borderColor = 'var(--c-green)';
+            let moveText = e.movesFree > 0 ? ` <span style="font-size:0.9em">👟${e.movesFree}</span>` : '';
+            let borderStyle = e.isDead ? 'dashed' : 'solid';
+            return `<div class="order-card ${i===currentTurnIndex?'active':''} ${e.isDead?'dead':''}" 
+                        style="border: 2px ${borderStyle} ${borderColor};"
+                        onclick="showEntityStats('${e.id}')">
+                <div style="font-weight:bold">${getEntityIcon(e)} ${e.name}</div>
+                <div>❤️${hpText} ${apIcon}${e.ap}${moveText}</div>
+            </div>`;
+        }).join('');
+        renderStatsContent();
+    }
+
+    window.showEntityStats = function(id) {
+        currentStatsEntityId = id;
+        modalOverlay.style.display = 'flex';
+        renderStatsContent();
+    }
+
+    window.toggleSurrender = function(state) {
+        surrenderState = state;
+        renderStatsContent();
+    }
+
+    window.confirmSurrender = function() {
+        let player = entities.find(e => e.id === 'player');
+        player.hp = 0;
+        player.isDead = true;
+        mapData[player.pos].entityId = null;
+        log(`${player.name} 🏳️ 投降`);
+        renderGrid();
+        updateHUD();
+        checkWinCondition();
+    }
+
+    window.toggleFog = function() {
+        isFogMode = !isFogMode;
+        if(isFogMode) {
+            gridEl.classList.add('fog-active');
+            log('🌫️ 迷霧開啟');
+        } else {
+            gridEl.classList.remove('fog-active');
+            log('☀️ 迷霧關閉');
+        }
+        renderGrid(); // Force re-render to update coordinates if needed
+    }
+
+    function renderStatsContent() {
+        if (!currentStatsEntityId || modalOverlay.style.display === 'none') return;
+        let e = entities.find(x => x.id === currentStatsEntityId);
+        if(!e) { closeModal(); return; } 
+        let hpHtml = '';
+        if (e.maxHp > 9) {
+             hpHtml += `<div class="hp-block hp-fill" style="width: auto; padding: 0 4px; font-size: 11px; line-height: 14px; color: #fff; font-weight: bold;">${e.hp}/${e.maxHp}</div>`;
+        } else {
+            for(let i=0; i<e.maxHp; i++) {
+                let cls = i < e.hp ? 'hp-fill' : 'hp-empty';
+                hpHtml += `<div class="hp-block ${cls}"></div>`;
+            }
+        }
+        for(let i=0; i<e.armor; i++) { hpHtml += `<div class="hp-block hp-extra"></div>`; }
+        let foodHtml = '';
+        for(let i=0; i<3; i++) { foodHtml += (i < e.food) ? '🍖' : '🦴'; }
+        let effectiveAtk = e.atk;
+        let effectiveDef = e.def;
+        let effectiveDodge = e.dodge;
+        if(e.triggerOrder.includes('ambush') && mapData[e.pos].type === 'hole') effectiveAtk += 2;
+        if(e.triggerOrder.includes('foodGuard') && mapData[e.pos].hasFood) effectiveAtk += 2;
+        if(e.triggerOrder.includes('dive') && mapData[e.pos].type === 'rock') effectiveAtk += 2;
+        if(e.triggerOrder.includes('pounce')) {
+            let hasDist2Entity = entities.some(other => !other.isDead && other.id !== e.id && getDist(e.pos, other.pos) === 2);
+            if(hasDist2Entity) effectiveAtk += 2;
+        }
+        if(e.triggerOrder.includes('shrink') && e.ap > 0) effectiveDef += 3;
+        if(e.triggerOrder.includes('eyespots') && e.hp > 3) effectiveDef += 3;
+        if(e.triggerOrder.includes('burrow') && mapData[e.pos].type === 'hole') effectiveDodge += 3;
+        if(e.triggerOrder.includes('eyespots') && e.hp > 3) effectiveDodge += 3;
+        if(e.triggerOrder.includes('mimicry')) {
+             let cType = mapData[e.pos].type;
+             if(cType === 'rock' || cType === 'land') effectiveDodge += 1;
+        }
+        const specsList = [
+            { n: '❤️ 生命', v: e.maxHp, base: 2 },
+            { n: '⚔️ 攻擊', v: effectiveAtk, base: e.atk },
+            { n: '🛡️ 防禦', v: effectiveDef, base: e.def },
+            { n: '🏹 射程', v: e.range, base: e.range },
+            { n: '💨 閃避', v: effectiveDodge, base: e.dodge },
+            { n: '🔄 反擊', v: e.counter, base: e.counter },
+            { n: '🧱 攀岩', v: e.climb, base: e.climb },
+            { n: '⛏️ 深掘', v: e.dig, base: e.dig }
+        ];
+        let specsHtml = specsList.filter(s => s.v > 0).map(s => {
+            let style = s.v > s.base ? 'color:var(--c-green); border-color:var(--c-green);' : '';
+            return `<div class="skill-chip spec" style="${style}">${s.n} ${s.v}</div>`
+        }).join('');
+        if (specsHtml === '') specsHtml = '<div style="color:#ccc; font-size:12px; padding:5px;">(無強化數值)</div>';
+        const activeSkills = ['ram', 'teleport', 'dig_active']; 
+        let skillsHtml = '';
+        if (e.heldCards.length === 0) {
+            skillsHtml = '<div style="color:#ccc; font-size:12px; padding:5px;">(無基因突變)</div>';
+        } else {
+            let cardGroups = {};
+            e.heldCards.forEach(c => {
+                if (!cardGroups[c.type]) { cardGroups[c.type] = { ...c, count: 0 }; }
+                cardGroups[c.type].count++;
+            });
+            skillsHtml = Object.values(cardGroups).map(c => {
+                let type = activeSkills.includes(c.type) ? 'active' : 'passive';
+                let classes = `skill-chip ${type}`;
+                let displayName = c.name;
+                if (c.type === 'radiation' || c.type === 'radioactivePollution') { displayName += ` ${e.radiationLayers}`; }
+                if (c.type === 'autotomy' && e.autotomyUsedPhase === window.currentPhaseId) { classes += ' cooldown'; }
+                return `<div class="${classes}">${displayName}</div>`;
+            }).join('');
+        }
+        let apSchedule = e.card.special ? "🌞🎲🌛🎲" : `🌞${e.card.d}🌛${e.card.n}`;
+        
+        let headerRightHtml = '';
+        if (isGameOver) {
+            let resultText = entities.find(ent => ent.id === 'player').isDead ? "失敗" : "勝利";
+            let color = resultText === "勝利" ? "var(--c-green)" : "var(--c-red)";
+            headerRightHtml = `
+                <div style="text-align:right;">
+                    <div style="font-size:16px; font-weight:900; color:${color}"><span style="font-size:14px; color:#000;">R${currentRound}</span> ${resultText}</div>
+                </div>
+            `;
+        } else if (e.id === 'player' && !isGameOver) {
+            if (!surrenderState) {
+                headerRightHtml = `<div style="cursor:pointer; font-size:20px;" onclick="toggleSurrender(true)">🏳️</div>`;
+            } else {
+                headerRightHtml = `
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <span style="font-size:12px; font-weight:bold; color:var(--c-red)">投降?</span>
+                        <button class="menu-btn" onclick="confirmSurrender()">是</button>
+                        <button class="menu-btn" onclick="toggleSurrender(false)">否</button>
+                    </div>
+                `;
+            }
+        }
+
+        let bottomBtnHtml = `<button class="modal-btn" onclick="closeModal()">關閉</button>`;
+        if (isGameOver) {
+            bottomBtnHtml = `<button class="modal-btn" onclick="location.reload()">開新一局</button>`;
+        }
+
+        let content = `
+            <div class="stats-container">
+                <div class="stats-header">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:6px;">
+                        <div style="font-size:18px; font-weight:900;">${getEntityIcon(e)} ${e.name} ${e.isDead?'(💀已死亡)':''}</div>
+                        ${headerRightHtml}
+                    </div>
+                    <div class="hp-bar-container">${hpHtml}</div>
+                    <div class="resource-row">
+                        <span>🔋 ${e.ap} [${apSchedule}]</span>
+                        <span>${foodHtml}</span>
+                    </div>
+                </div>
+                <div class="section-title">肉體構造 SPECS</div>
+                <div class="specs-container">${specsHtml}</div>
+                <div class="section-title">基因序列 DNA</div>
+                <div class="dna-container">${skillsHtml}</div>
+            </div>
+            ${bottomBtnHtml}
+        `;
+        let body = document.getElementById('modal-body');
+        body.innerHTML = content;
+    }
+
+    function showModal(t, c) {
+        let body = document.getElementById('modal-body');
+        body.innerHTML = `<div class="modal-title">${t}</div><div>${c}</div>`;
+        modalOverlay.style.display = 'flex';
+    }
+    
+    window.closeModal = () => { 
+        modalOverlay.style.display = 'none'; 
+        currentStatsEntityId = null; 
+        surrenderState = false; // Reset surrender state
+    }
+    
+    window.viewCards = (type) => {
+        let cards = type==='deck' ? evolveDeck : evolveDiscard;
+        let counts = {}; cards.forEach(c => counts[c.name] = (counts[c.name]||0)+1);
+        let html = Object.keys(counts).map(k => `<div>${k} x${counts[k]}</div>`).join('');
+        if(!html) html = "<div>(空)</div>";
+        html += `<button class="modal-btn" onclick="closeModal()">關閉</button>`;
+        showModal(type==='deck'?"牌庫":"棄牌堆", html);
+    }
+    initGame();
+</script>
+</body>
+</html>
