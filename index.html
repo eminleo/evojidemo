@@ -1060,7 +1060,12 @@
                 mapData[destIdx].entityId = target.id;
                 target.pos = destIdx;
                 log(`${target.name} 🔙 被擊退`);
-                if(destCell.type === 'void') turnToVoid(destIdx);
+                
+                // FIX: Ram Logic - Check for void first
+                if(destCell.type === 'void') {
+                    log(`${target.name} 🌌 被推入虛空`);
+                    victimKill(target, ent);
+                }
             }
         }
         if(blocked) {
@@ -1826,6 +1831,15 @@
     function turnToVoid(idx) {
         mapData[idx].type = 'void';
         mapData[idx].hasFood = false;
+
+        // FIX: Visual update - remove terrain markers immediately
+        let div = document.getElementById(`cell-${idx}`);
+        if(div) {
+            div.className = 'cell terrain-void';
+            let tm = div.querySelector('.terrain-marker');
+            if(tm) tm.remove();
+        }
+
         let victim = entities.find(e => e.pos === idx);
         showFloat(idx, "🌌", true); 
         if(victim && !victim.isDead) { 
@@ -2069,8 +2083,11 @@
                             mapData[destIdx].entityId = target.id;
                             target.pos = destIdx;
                             log(`${target.name} 🔙 被擊退`);
+                            
+                            // FIX: Ram Logic - Check for void first
                             if(destCell.type === 'void') {
-                                turnToVoid(destIdx);
+                                log(`${target.name} 🌌 被推入虛空`);
+                                victimKill(target, ent);
                             }
                         }
                     }
