@@ -3,21 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA Settings -->
     <meta name="theme-color" content="#222222">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
-    <title>Dark Forest Demo V2 (Auto-Save)</title>
+    <title>Evoji Demo V1</title>
     <style>
         :root { 
             --c-white: #FFFFFF; --c-black: #000000; --c-red: #D72600; --c-yellow: #ECD407; --c-green: #379711; --c-blue: #0956BF; 
             
-            /* Fog Variables */
             --fog-color: #000;
             --fog-mask-start: 5%;
             --fog-mask-end: 15%;
             
-            /* Texture Base */
             --bg-paper: #f5f5dc;
             --tex-paper: url('https://www.transparenttextures.com/patterns/lined-paper-2.png');
         }
@@ -45,7 +42,6 @@
         button:disabled { border: 1px dashed #ccc; color: #999; background: #eee; cursor: not-allowed; }
         button:active { transform: translateY(2px); box-shadow: none; }
         
-        /* HUD Blocks */
         #hud { 
             flex: 0 0 auto; 
             border-bottom: 2px solid #666; 
@@ -109,17 +105,32 @@
             display: none;
             transition: background-color 0.5s;
         }
+
+        #grid.phase-day #fog-layer {
+            --fog-color: #e3f1f2;
+            --fog-mask-start: 15%;
+            --fog-mask-end: 30%;
+            background-color: var(--fog-color);
+        }
+        
+        #grid.phase-night #fog-layer {
+            --fog-color: #000;
+            --fog-mask-start: 5%;
+            --fog-mask-end: 15%;
+            background-color: var(--fog-color);
+        }
+
         .fog-active #fog-layer { display: block; }
         .fog-active .cell-number { opacity: 0; }
         
         .cell { 
             position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; 
-            background-color: #d9b6a3;
-            background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
+            background-color: #A9DA3F;
+            background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png');
         }
-        .cell.terrain-land { background-color: #d9b6a3; background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png'); }
+        .cell.terrain-land { background-color: #A9DA3F; background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png'); }
         .cell.terrain-rock { background-color: #808080; background-image: url('https://www.transparenttextures.com/patterns/gravel.png'); }
-        .cell.terrain-hole { background-color: #A9DA3F; background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png'); }
+        .cell.terrain-hole { background-color: #d9b6a3; background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png'); }
         .cell.terrain-void { background: #000; background-image: none; cursor: not-allowed; }
 
         .cell-number { position: absolute; bottom: 1px; right: 1px; font-size: 10px; color: #000; pointer-events: none; font-weight: bold; z-index: 5; opacity: 0.6; transition: opacity 0.3s; text-shadow: 0 0 2px #fff; }
@@ -127,7 +138,7 @@
         .terrain-marker { position: absolute; font-size: 20px; z-index: 40; pointer-events: none; transition: all 0.2s; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.8; }
         .terrain-marker.corner { top: auto; bottom: 1px; right: 1px; font-size: 14px; z-index: 40; transform: none; left: auto; background-color: transparent; line-height: 1; padding: 0 1px; }
         
-        .cell.highlight-move::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 14px; height: 14px; background-color: rgba(55, 151, 17, 0.8); border-radius: 50%; z-index: 42; pointer-events: none; box-shadow: 0 0 5px #fff; }
+        .cell.highlight-move::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 14px; height: 14px; background-color: rgba(236, 212, 7, 0.8); border-radius: 50%; z-index: 42; pointer-events: none; box-shadow: 0 0 5px var(--c-yellow); }
         .cell.highlight-move { cursor: pointer; }
         .cell.highlight-attack { background-color: rgba(255, 238, 238, 0.8); border: 1px dashed var(--c-red); cursor: pointer; z-index: 56; }
         .cell.highlight-teleport { background-color: rgba(239, 255, 239, 0.8); border: 1px dashed var(--c-green); cursor: pointer; z-index: 56; }
@@ -235,7 +246,6 @@
 </div>
 
 <script>
-    // --- PWA Service Worker Registration ---
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./service-worker.js')
@@ -244,7 +254,6 @@
         });
     }
 
-    // --- HIVEMIND AI LOGIC START ---
     const HivemindAI = {
         HARD_RANKING: [
             'parasite', 'radiation', 'molt', 'regeneration', 'pachyderms', 'speed',
@@ -813,7 +822,6 @@
             return adjs;
         }
     };
-    // --- HIVEMIND AI LOGIC END ---
 
     const HELD_CARDS = ['speed','regeneration','tonicImmobility','explode','spore','ram','radiation','photosynthesis','daywalker','nightstalker','hibernation','web','ambush','foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis','shrink','snatch','filterfeed','burrow','pounce','feint','strangle','eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow','radioactivePollution','pachyderms'];
     
@@ -824,8 +832,6 @@
         }
         return '🧫';
     }
-
-    // --- AI PLANNING & EXECUTION (Integrated) ---
 
     let currentAiScript = [];
 
@@ -1065,8 +1071,6 @@
         setTimeout(() => executeNextAiAction(ent), 1000);
     }
 
-    // --- STANDARD GAME LOGIC ---
-
     let mapData = [], entities = [];
     let currentRound = 1, currentPhase = 'setup'; 
     let turnOrder = [], currentTurnIndex = -1;
@@ -1077,7 +1081,7 @@
     let currentStatsEntityId = null;
     let isGameOver = false;
     let surrenderState = false;
-    let isFogMode = true; // Default Fog ON
+    let isFogMode = true; 
 
     const gridEl = document.getElementById('grid');
     const logEl = document.getElementById('mini-log');
@@ -1086,7 +1090,6 @@
     const phaseText = document.getElementById('phase-text');
     const turnText = document.getElementById('turn-text');
 
-    // --- SAVE/LOAD SYSTEM START ---
     function saveGame() {
         const state = {
             mapData: mapData,
@@ -1102,7 +1105,6 @@
             timestamp: new Date().getTime()
         };
         localStorage.setItem('hivemind_save_v1', JSON.stringify(state));
-        console.log("Game Saved at Phase Start", window.currentPhaseId);
     }
 
     function loadGame() {
@@ -1112,7 +1114,6 @@
         try {
             const state = JSON.parse(savedJson);
             
-            // Restore Variables
             mapData = state.mapData;
             entities = state.entities;
             currentRound = state.currentRound;
@@ -1124,22 +1125,22 @@
             isGameOver = state.isGameOver;
             window.currentPhaseId = state.phaseId;
             
-            // Re-bind entity references in mapData (IMPORTANT for object reference consistency)
-            // JSON parsing creates new objects, so we must link mapData[i].entityId back to real entities if needed,
-            // but our logic uses ID strings, so it's mostly fine. 
-            // However, we need to make sure the `entities` array is the source of truth.
-            
-            // Reset UI State
             subPhase = 'wait';
-            currentTurnIndex = -1; // Reset turn index to start of phase
+            currentTurnIndex = -1; 
             activeEntity = null;
 
-            // Re-render
             gridEl.innerHTML = '<div id="fog-layer"></div>';
             if(isFogMode) gridEl.classList.add('fog-active');
             else gridEl.classList.remove('fog-active');
             
-            // Re-create DOM elements for grid
+            if (currentPhase === 'day') {
+                gridEl.classList.add('phase-day');
+                gridEl.classList.remove('phase-night');
+            } else {
+                gridEl.classList.add('phase-night');
+                gridEl.classList.remove('phase-day');
+            }
+
             mapData.forEach(c => {
                  let div = document.createElement('div');
                 div.className = `cell terrain-${c.type}`; 
@@ -1159,32 +1160,17 @@
             renderGrid();
             updateHUD();
             
-            // Update Phase Text
             let pName = (currentPhase === 'day') ? "🌞 日階段" : (currentPhase === 'night') ? "🌛 夜階段" : "準備";
             phaseText.innerText = `R${currentRound} - ${pName}`;
             turnText.innerText = "進度已載入";
             
             log("💾 讀取進度成功: " + pName);
-            
-            // Set Fog Colors
-            const root = document.documentElement;
-            if(currentPhase === 'day') {
-                root.style.setProperty('--fog-color', '#e3f1f2');
-                root.style.setProperty('--fog-mask-start', '15%');
-                root.style.setProperty('--fog-mask-end', '30%');
-            } else {
-                root.style.setProperty('--fog-color', '#000');
-                root.style.setProperty('--fog-mask-start', '5%');
-                root.style.setProperty('--fog-mask-end', '15%');
-            }
 
             return true;
         } catch (e) {
-            console.error("Load failed", e);
             return false;
         }
     }
-    // --- SAVE/LOAD SYSTEM END ---
 
     function log(msg) {
         const div = document.createElement('div');
@@ -1278,48 +1264,18 @@
     }
 
     function initGame() {
-        // Check for save game first
         const hasSave = localStorage.getItem('hivemind_save_v1');
         
         if (hasSave) {
-            actionMenu.innerHTML = '';
-            
-            let btnContinue = document.createElement('button');
-            btnContinue.className = 'menu-btn important';
-            btnContinue.innerHTML = `<span>📂 繼續進度</span>`;
-            btnContinue.onclick = () => {
-                if(loadGame()) {
-                    // Logic to resume phase
-                    renderPhaseButton('next_phase'); // Show phase transition button to start the phase logic
-                    // Actually, if we loaded at phase start, we are in 'wait' state.
-                    // We should let the user click "Next Phase" to trigger the turn loop?
-                    // Or we can just auto-start the phase logic.
-                    // Given the request "return to progress", let's let them click to start the phase turns.
-                    // But wait, the save is AT start phase.
-                    // So we are effectively at the "Wait" state before turns start.
-                    // Let's manually trigger the turn start sequence.
-                    setTimeout(startNextTurn, 500); 
-                }
-            };
-            
-            let btnNew = document.createElement('button');
-            btnNew.className = 'menu-btn';
-            btnNew.innerHTML = `<span>✨ 開新局</span>`;
-            btnNew.onclick = () => {
-                if(confirm("確定要刪除進度並開新局嗎？")) {
-                    localStorage.removeItem('hivemind_save_v1');
-                    startNewGameProcess();
-                }
-            };
-            
-            actionMenu.appendChild(btnContinue);
-            actionMenu.appendChild(btnNew);
-            phaseText.innerText = "發現存檔";
-            turnText.innerText = "請選擇";
-            
-        } else {
-            startNewGameProcess();
+            if(loadGame()) {
+                setTimeout(() => {
+                    // FIX 2: 修正刷新後跳階段的 Bug。現在總是嘗試繼續回合，而不是強制切換階段
+                    startNextTurn();
+                }, 500);
+                return;
+            }
         }
+        startNewGameProcess();
     }
     
     function startNewGameProcess() {
@@ -1458,16 +1414,13 @@
         phaseText.innerText = `R${currentRound} - ${pName}`;
         log(`${pName}`);
         
-        // Update Fog Style
-        const root = document.documentElement;
+        const gridDiv = document.getElementById('grid');
         if(phaseName === 'day') {
-            root.style.setProperty('--fog-color', '#e3f1f2'); // UPDATED: Light cyan fog
-            root.style.setProperty('--fog-mask-start', '15%');
-            root.style.setProperty('--fog-mask-end', '30%');
+            gridDiv.classList.remove('phase-night');
+            gridDiv.classList.add('phase-day');
         } else {
-            root.style.setProperty('--fog-color', '#000');
-            root.style.setProperty('--fog-mask-start', '5%');
-            root.style.setProperty('--fog-mask-end', '15%');
+            gridDiv.classList.remove('phase-day');
+            gridDiv.classList.add('phase-night');
         }
 
         let foodCount = mapData.filter(c=>c.hasFood).length;
@@ -1503,9 +1456,7 @@
         currentTurnIndex = -1;
         renderGrid(); updateHUD();
         
-        // --- SAVE GAME HERE ---
         saveGame();
-        // ----------------------
 
         setTimeout(startNextTurn, 1000);
     }
@@ -1584,7 +1535,8 @@
                             let target = entities.find(e => e.id === targetId);
                             if(target && !target.isDead) {
                                 applyDamage(target, dmg, ent, true, false); 
-                                if(isHigh && !target.triggerOrder.includes('radioactivePollution')) {
+                                let hasSourceRadiation = target.triggerOrder.includes('radiation');
+                                if(isHigh && !target.triggerOrder.includes('radioactivePollution') && !hasSourceRadiation) {
                                     target.triggerOrder.push('radioactivePollution');
                                     target.heldCards.push({type: 'radioactivePollution', name: '☢️ 放射性污染'});
                                     log(`${target.name} 🧬☢️`); 
@@ -1594,6 +1546,11 @@
                         }
                     });
                     if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d20})`);
+                    
+                    if (ent.radiationLayers > 20) {
+                        applyDamage(ent, 1, ent, true, false);
+                        log(`${ent.name} ☢️ ❤️-1 (污染反噬)`);
+                    }
                 }
             }
 
@@ -1667,7 +1624,7 @@
                 if(ent.ap >= cost) {
                     let btn = document.createElement('button');
                     btn.className = 'menu-btn';
-                    btn.innerHTML = `<span>🌀 地遁</span><span class="menu-cost">${cost} 🔋</span>`;
+                    btn.innerHTML = `<span>🌀 遁地</span><span class="menu-cost">${cost} 🔋</span>`;
                     btn.onclick = () => enterTeleportMode(cost);
                     actionMenu.appendChild(btn);
                 }
@@ -1799,7 +1756,10 @@
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
-            else { log(`${ent.name} 🌌 → 🚫`); triggerVoidCollapse(); }
+            else { 
+                log(`${ent.name} ⛏️ → 🌌`); 
+                triggerVoidCollapse(ent); 
+            }
         }
         if (!ent.triggerOrder.includes(card.type)) { ent.triggerOrder.push(card.type); }
     }
@@ -1838,11 +1798,13 @@
         }
     }
 
-    function triggerVoidCollapse() {
+    function triggerVoidCollapse(sourceEntity) {
         let candidates = mapData.filter(c => c.type !== 'void' && getNonVoidNeighborCount(c.index) === 2);
         if(candidates.length === 0) { return; }
         let target = candidates[Math.floor(Math.random() * candidates.length)];
-        log(`${entities.find(e=>e.dig>=4)?.name || "虛空"} 🌌 → 🚫`);
+        
+        log(`${sourceEntity ? sourceEntity.name : "虛空"} ⛏️ → 🌌`);
+        
         turnToVoid(target.index);
         cascadeVoid();
     }
@@ -1865,9 +1827,9 @@
         mapData[idx].type = 'void';
         mapData[idx].hasFood = false;
         let victim = entities.find(e => e.pos === idx);
-        showFloat(idx, "🚫", true); 
+        showFloat(idx, "🌌", true); 
         if(victim && !victim.isDead) { 
-            log(`${victim.name} 🚫 落入虛空`);
+            log(`${victim.name} 🌌 落入虛空`);
             victimKill(victim, null); 
         } 
     }
@@ -2012,8 +1974,11 @@
                             }
                         });
                         if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d20})`);
-                        applyDamage(ent, 1, ent, true, false);
-                        log(`${ent.name} ☢️ ❤️-1`);
+                        
+                        if (ent.radiationLayers > 20) {
+                            applyDamage(ent, 1, ent, true, false);
+                            log(`${ent.name} ☢️ ❤️-1 (污染反噬)`);
+                        }
                     }
                 }
             });
@@ -2121,6 +2086,13 @@
             else if(window.activeSkillType === 'atomic_breath') {
                 let r1 = Math.floor(ent.pos / 9), c1 = ent.pos % 9;
                 let r2 = Math.floor(idx / 9), c2 = idx % 9;
+
+                // FIX 3: 禁止斜向攻擊
+                if (r1 !== r2 && c1 !== c2) {
+                    log(`${ent.name} 🚫 只能攻擊直線 (橫向或縱向)`);
+                    return; 
+                }
+
                 let dr = Math.sign(r2 - r1);
                 let dc = Math.sign(c2 - c1);
                 
@@ -2489,13 +2461,11 @@
 
     function renderGrid() {
         document.querySelectorAll('.highlight-move, .highlight-attack, .highlight-teleport').forEach(el => {
-            el.className = 'cell';
-            let idx = parseInt(el.id.split('-')[1]);
-            if(mapData[idx].type === 'void') el.classList.add('terrain-void');
+            el.classList.remove('highlight-move', 'highlight-attack', 'highlight-teleport');
         });
+
         document.querySelectorAll('.entity, .entity-info, .food').forEach(e=>e.remove());
         
-        // Update fog position
         let player = entities.find(e => e.id === 'player');
         if (player) {
             const r = Math.floor(player.pos / 9);
@@ -2550,6 +2520,18 @@
             } else if(subPhase === 'active_skill' && window.activeSkillType === 'ram') {
                 getAdjacents(activeEntity.pos).forEach(idx => {
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
+                });
+            } 
+            // FIX 4: 新增原子吐息範圍顯示，使用紅色格子提示十字範圍
+            else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
+                let r = Math.floor(activeEntity.pos / 9);
+                let c = activeEntity.pos % 9;
+                mapData.forEach(cell => {
+                    let cr = Math.floor(cell.index / 9);
+                    let cc = cell.index % 9;
+                    if ((cr === r || cc === c) && cell.index !== activeEntity.pos) {
+                        document.getElementById(`cell-${cell.index}`).classList.add('highlight-attack');
+                    }
                 });
             }
         }
@@ -2612,7 +2594,7 @@
             gridEl.classList.remove('fog-active');
             log('☀️ 迷霧關閉');
         }
-        renderGrid(); // Force re-render to update coordinates if needed
+        renderGrid(); 
     }
 
     function renderStatsContent() {
@@ -2708,9 +2690,10 @@
             }
         }
 
+        // FIX 1: 按鈕現在會先清除 localStorage 再重整，解決無法開新局的問題
         let bottomBtnHtml = `<button class="modal-btn" onclick="closeModal()">關閉</button>`;
         if (isGameOver) {
-            bottomBtnHtml = `<button class="modal-btn" onclick="location.reload()">開新一局</button>`;
+            bottomBtnHtml = `<button class="modal-btn" onclick="localStorage.removeItem('hivemind_save_v1'); location.reload()">開新一局</button>`;
         }
 
         let content = `
@@ -2746,7 +2729,7 @@
     window.closeModal = () => { 
         modalOverlay.style.display = 'none'; 
         currentStatsEntityId = null; 
-        surrenderState = false; // Reset surrender state
+        surrenderState = false; 
     }
     
     window.viewCards = (type) => {
