@@ -1,6 +1,7 @@
 // 當你修改了遊戲內容 (index.html) 或圖片，記得要改這裡的版本號 (例如 v4 -> v5)
 // 改了版本號，瀏覽器才會知道要重新下載新的檔案
-const CACHE_NAME = 'evolchess-v4-best-effort'; 
+// FIX: 版本號升級為 v5，強制瀏覽器重新下載修復後的 index.html，並更名為 Evoji Demo
+const CACHE_NAME = 'evoji-demo-v5-best-effort'; 
 
 const ASSETS_TO_CACHE = [
   './',
@@ -45,7 +46,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(keyList.map((key) => {
-        // 如果發現快取名稱跟現在的不一樣 (例如發現了舊版 v3)，就刪掉
+        // 如果發現快取名稱跟現在的不一樣 (例如發現了舊版 v4)，就刪掉
         if (key !== CACHE_NAME) {
           console.log('[SW] 刪除舊快取:', key);
           return caches.delete(key);
