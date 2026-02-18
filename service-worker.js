@@ -1,7 +1,7 @@
 // 當你修改了遊戲內容 (index.html) 或圖片，記得要改這裡的版本號 (例如 v5 -> v6)
 // 改了版本號，瀏覽器才會知道要重新下載新的檔案
-// FIX: 版本號升級為 v6，強制瀏覽器重新下載修復後的 index.html (Ram Bug Fix & Void Visual Update)
-const CACHE_NAME = 'evoji-demo-v6-best-effort'; 
+// FIX: 版本號升級為 v7，強制瀏覽器重新下載修復後的 index.html (Radiation/Pollution Fix)
+const CACHE_NAME = 'evoji-demo-v7-radiation-fix'; 
 
 const ASSETS_TO_CACHE = [
   './',
