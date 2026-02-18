@@ -1,11 +1,11 @@
 {
   "name": "Evoji Demo v1",
-  "short_name": "Evoji Demo v1",
+  "short_name": "Evoji",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#222222",
   "theme_color": "#222222",
-  "description": "Evoji Demo v1",
+  "description": "Evoji Demo v1.1 (Bug Fixes)",
   "orientation": "portrait",
   "icons": [
     {
