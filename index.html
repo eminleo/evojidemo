@@ -1262,7 +1262,7 @@
     function loseFood(ent, amt) {
         let actualLoss = 0;
         for(let i=0; i<amt; i++) {
-            if(ent.food > 0) { ent.food--; actualLoss++; }
+            if(ent.food > 0) { ent.food++; actualLoss++; }
         }
         if(actualLoss > 0) showFloat(ent.pos, `🍖`, true); 
         return actualLoss;
@@ -1421,7 +1421,7 @@
         
         const gridDiv = document.getElementById('grid');
         if(phaseName === 'day') {
-            gridDiv.classList.remove('phase-night');
+            gridDiv.classList.remove('phase-day');
             gridDiv.classList.add('phase-day');
         } else {
             gridDiv.classList.remove('phase-day');
@@ -1526,7 +1526,14 @@
                 }
             }
             
+            // FIX: 正確的回合開始效果
             if (effect === 'radiation') {
+                 ent.radiationLayers++;
+                 showFloat(ent.pos, `☢️`);
+            }
+
+            // FIX: 正確的回合開始效果
+            if (effect === 'radioactivePollution') {
                 let d20 = sum(roll(1, 20));
                 let bonus = Math.floor(ent.radiationLayers / 100);
                 let dmg = 1 + bonus;
@@ -1557,11 +1564,6 @@
                         log(`${ent.name} ☢️ ❤️-1 (污染反噬)`);
                     }
                 }
-            }
-
-            if (effect === 'radioactivePollution') {
-                ent.radiationLayers++;
-                showFloat(ent.pos, `☢️`); 
             }
         });
         renderGrid(); updateHUD();
@@ -1959,12 +1961,8 @@
                     if(hit) log(`${ent.name} 🍄 周圍敵人 🔋-1`);
                 }
                 
+                // FIX: 正確的回合結束效果 (輻射) - 不自傷
                 if (effect === 'radiation') {
-                     ent.radiationLayers++;
-                     showFloat(ent.pos, `☢️`);
-                }
-                
-                if (effect === 'radioactivePollution') {
                     let d20 = sum(roll(1, 20));
                     let bonus = Math.floor(ent.radiationLayers / 100);
                     let dmg = 1 + bonus;
@@ -1978,7 +1976,8 @@
                                 let target = entities.find(e => e.id === targetId);
                                 if(target && !target.isDead) {
                                     applyDamage(target, dmg, ent, true, false);
-                                    if(isHigh && !target.triggerOrder.includes('radioactivePollution')) {
+                                    let hasSourceRadiation = target.triggerOrder.includes('radiation');
+                                    if(isHigh && !target.triggerOrder.includes('radioactivePollution') && !hasSourceRadiation) {
                                         target.triggerOrder.push('radioactivePollution');
                                         target.heldCards.push({type: 'radioactivePollution', name: '☢️ 放射性污染'});
                                         log(`${target.name} 🧬☢️`);
@@ -1988,12 +1987,14 @@
                             }
                         });
                         if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d20})`);
-                        
-                        if (ent.radiationLayers > 20) {
-                            applyDamage(ent, 1, ent, true, false);
-                            log(`${ent.name} ☢️ ❤️-1 (污染反噬)`);
-                        }
+                        // REMOVED: 輻射持有者不會因為層數過高而自傷
                     }
+                }
+                
+                // FIX: 正確的回合結束效果 (污染)
+                if (effect === 'radioactivePollution') {
+                     ent.radiationLayers++;
+                     showFloat(ent.pos, `☢️`);
                 }
             });
         }
