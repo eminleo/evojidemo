@@ -12,7 +12,7 @@
             --c-white: #FFFFFF; --c-black: #000000; --c-red: #D72600; --c-yellow: #ECD407; --c-green: #379711; --c-blue: #0956BF; 
             
             --fog-color: #000;
-            --fog-mask-start: 5%;
+            --fog-mask-start: 14%;
             --fog-mask-end: 15%;
             
             --bg-paper: #f5f5dc;
@@ -44,7 +44,7 @@
         
         #hud { 
             flex: 0 0 auto; 
-            border-bottom: 1px dashed #666; 
+            border-bottom: 2px solid #666; 
             padding: 5px 10px; 
             background-color: var(--bg-paper);
             background-image: var(--tex-paper);
@@ -81,7 +81,7 @@
             width: 100%; display: flex; justify-content: center; padding: 4px 0; 
             background-color: var(--bg-paper);
             background-image: var(--tex-paper);
-            border-bottom: 1px dashed #666; position: relative; z-index: 50; min-height: 50px; align-items: center; 
+            border-bottom: 2px solid #666; position: relative; z-index: 50; min-height: 50px; align-items: center; 
         }
         #action-menu { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; padding: 0 5px; }
         .menu-btn { min-width: 65px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px;}
@@ -108,14 +108,14 @@
 
         #grid.phase-day #fog-layer {
             --fog-color: #e3f1f2;
-            --fog-mask-start: 15%;
+            --fog-mask-start: 29%;
             --fog-mask-end: 30%;
             background-color: var(--fog-color);
         }
         
         #grid.phase-night #fog-layer {
             --fog-color: #000;
-            --fog-mask-start: 5%;
+            --fog-mask-start: 14%;
             --fog-mask-end: 15%;
             background-color: var(--fog-color);
         }
@@ -256,18 +256,18 @@
 
     const HivemindAI = {
         HARD_RANKING: [
-            'parasite', 'radiation', 'molt', 'regeneration', 'pachyderms', 'speed',
+            'parasite', 'radiation', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
             'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
             'diapause', 'autotomy', 'web', 'gigantism', 'devour',
             'spore', 'snatch', 'colloid', 'mimicry', 'stinkGland', 'explode',
             'dig', 'climb', 'feint', 'strangle',
-            'tonicImmobility', 'eyespots', 'burrow', 'shrink', 'hibernation',
+            'tonicImmobility', 'eyespots', 'burrow', 'shrink',
             'ram', 'foodGuard', 'pounce', 'ambush', 'dive', 'range',
-            'hp', 'counter', 'dodge', 'def', 'atk'
+            'counter', 'def', 'dodge', 'hp'
         ],
 
         T0_CARDS: new Set([
-            'parasite', 'radiation', 'molt', 'regeneration', 'pachyderms', 'speed',
+            'parasite', 'radiation', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
             'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
             'diapause', 'autotomy', 'web', 'gigantism', 'devour'
         ]),
@@ -283,8 +283,8 @@
 
         ROLE_PREFERENCE: {
             'Hunter': new Set([
-                'devour','feint','strangle','ram','foodGuard','pounce',
-                'ambush','dive','range','counter','atk'
+                'hibernation','devour','feint','strangle','ram','foodGuard','pounce',
+                'ambush','dive','range','counter'
             ]),
             'Invasive': new Set([
                 'radiation','molt','regeneration','pachyderms','autotomy',
@@ -686,7 +686,7 @@
         assignRole: function(ent) {
             const has = (type) => ent.heldCards.some(c => c.type === type) || ent.triggerOrder.includes(type);
             let naturalRole = 'Prey';
-            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('radiation') || has('regeneration') || has('pachyderms')) { naturalRole = 'Invasive'; }
+            if (has('hibernation') || has('devour')) { naturalRole = 'Hunter'; } else if (has('radiation') || has('regeneration') || has('pachyderms')) { naturalRole = 'Invasive'; }
             let finalRole = naturalRole;
             if (ent._assignedRole) {
                 const prev = ent._assignedRole;
@@ -699,9 +699,9 @@
         getDist: function(p1, p2) { return Math.abs(Math.floor(p1/9) - Math.floor(p2/9)) + Math.abs(p1%9 - p2%9); },
 
         getSafeRadius: function(ai) {
-            let radius = 1;
-            if (ai.radiationLayers > 19 || ai.heldCards.some(c=>c.type==='spore')) radius = 2; // Updated threshold
-            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 2;
+            let radius = 2;
+            if (ai.heldCards.some(c=>c.type==='radiation')) radius = 3;
+            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 3;
             return radius;
         },
 
@@ -779,17 +779,10 @@
         },
 
         canHunterAttack: function(hunter, player, gameState) {
-            let poolCount = 0;
-            const countHeld = (card) => { if(this.HELD_CARD_TYPES.has(card.type)) poolCount++; };
-            gameState.evolveDeck.forEach(countHeld);
-            if (gameState.evolveDiscard) gameState.evolveDiscard.forEach(countHeld);
-            if (poolCount >= 5) return false; 
-            if (hunter.range <= 1) return false;
-            if (hunter.dig < 2) return false;
+            if (hunter.range < 1) return false;
+            if (hunter.dig < 1) return false;
             const playerDefSum = player.hp + player.armor + player.def + player.dodge + player.counter;
             if (hunter.atk <= playerDefSum) return false;
-            const playerHasRad = player.heldCards.some(c => c.type === 'radiation' || c.type === 'radioactivePollution');
-            if (playerHasRad) return false;
             if (gameState.mapData[player.pos].type === 'rock' && player.climb > hunter.climb) return false;
             return true;
         },
@@ -1307,8 +1300,8 @@
     function initEvolveDeck() {
         evolveDeck = [];
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
-        const consumables = [{t:'atk', n:'⚔️ 攻擊'},{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
-        consumables.forEach(c => add(c.t, 4, c.n));
+        const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
+        consumables.forEach(c => add(c.t, 5, c.n));
         const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦎 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
@@ -1494,12 +1487,18 @@
             if (effect === 'speed') { ent.movesFree += ent.speed; }
             if (effect === 'regeneration') {
                 if(ent.hp < ent.maxHp) {
-                    let healAmt = ent.maxHp - ent.hp;
-                    ent.hp += healAmt; 
-                    showFloat(ent.pos, `🪱`); 
-                    log(`${ent.name} 🪱 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
-                }
-            }
+                         let healAmt = 2;
+        if (ent.maxHp >= 20) {
+            healAmt = Math.floor(ent.maxHp * 0.2); 
+            log(`${ent.name} 🪱 超再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+        } else {
+            log(`${ent.name} 🪱 再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+        }
+        healAmt = Math.min(healAmt, ent.maxHp - ent.hp);
+        ent.hp += healAmt; 
+        showFloat(ent.pos, `🪱`); 
+    }
+}
             if (effect === 'photosynthesis') {
                 if (currentPhase === 'day' && ent.food < 3) {
                     log(`${ent.name} 🌻 🍖+1`);
@@ -1747,7 +1746,7 @@
         }
         if(card.type === 'hp') { ent.maxHp++; ent.hp++; log(`${ent.name} ❤️+1`); }
         if(card.type === 'dodge') {
-            if(ent.triggerOrder.includes('gigantism')) { ent.maxHp++; ent.hp++; log(`${ent.name} 🦕 💨→❤️`); } 
+            if(ent.triggerOrder.includes('gigantism')) { ent.maxHp+= 2; ent.hp+= 2; log(`${ent.name} 🦕 💨→❤️(+2)`); } 
             else { ent.dodge++; log(`${ent.name} 💨 Lv${ent.dodge}`); }
         }
         if(card.type === 'counter') { ent.counter++; log(`${ent.name} 🔄 Lv${ent.counter}`); }
@@ -1755,9 +1754,9 @@
         if(card.type === 'climb') { ent.climb++; log(`${ent.name} 🧱 Lv${ent.climb}`); }
         
         if(card.type === 'gigantism') {
-            log(`${ent.name} 🦕 💨 → ❤️`);
+            log(`${ent.name} 🦕 💨 → ❤️(x2)`);
             if(ent.dodge > 0) {
-                ent.maxHp += ent.dodge; ent.hp += ent.dodge; ent.dodge = 0;
+                let bonusHp = ent.dodge * 2; ent.maxHp += bonusHp; ent.hp += bonusHp; ent.dodge = 0;
             }
         }
         if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
@@ -1811,9 +1810,6 @@
         let candidates = mapData.filter(c => c.type !== 'void' && getNonVoidNeighborCount(c.index) === 2);
         if(candidates.length === 0) { return; }
         let target = candidates[Math.floor(Math.random() * candidates.length)];
-        
-        log(`${sourceEntity ? sourceEntity.name : "虛空"} ⛏️ → 🌌`);
-        
         turnToVoid(target.index);
         cascadeVoid();
     }
@@ -1860,13 +1856,14 @@
         log(`${victim.name} 💀`);
         showFloat(victim.pos, "💀", true); 
         if(victim.triggerOrder.includes('explode')) {
-            log(`${victim.name} 🐋 💥2`);
+            let dmg = victim.maxHp;
+            log(`${victim.name} 🐋 💥${dmg}`);
             let targets = get8Adjacents(victim.pos);
             targets.forEach(idx => {
                 let tid = mapData[idx].entityId;
                 if(tid) {
                     let tEnt = entities.find(e => e.id === tid);
-                    if(tEnt && !tEnt.isDead) { applyDamage(tEnt, 2, victim, true, false); }
+                    if(tEnt && !tEnt.isDead) { applyDamage(tEnt, dmg, victim, true, false); }
                 }
             });
         }
@@ -1920,32 +1917,47 @@
             ent.movesFree = 0; 
             ent.triggerOrder.forEach(effect => {
                 if (effect === 'pachyderms') {
-                    if(ent.armor < 6) {
-                        ent.armor++; log(`${ent.name} 🦛 💙+1`); showFloat(ent.pos, "💙");
+                    if(ent.armor < ent.def) {
+                        ent.armor++; log(`${ent.name} 🦛 💙+1(Max:${ent.def})`); showFloat(ent.pos, "💙");
                     }
                 }
                 if (effect === 'regeneration') {
                     if(!ent.isDead && ent.hp < ent.maxHp) {
-                         let healAmt = ent.maxHp - ent.hp; ent.hp += healAmt; 
-                         showFloat(ent.pos, `🪱`); log(`${ent.name} 🪱 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
-                    }
-                }
+                         let healAmt = 2;
+        if (ent.maxHp >= 20) {
+            healAmt = Math.floor(ent.maxHp * 0.2); 
+            log(`${ent.name} 🪱 超再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+        } else {
+            log(`${ent.name} 🪱 再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+        }
+        healAmt = Math.min(healAmt, ent.maxHp - ent.hp);
+        ent.hp += healAmt; 
+        showFloat(ent.pos, `🪱`); 
+    }
+}
                 
                 if (effect === 'hibernation') {
                     if (ent.ap > 0) {
                         let consumed = ent.ap;
                         ent.ap = 0; 
-                        let healAmt = Math.min(consumed, ent.maxHp - ent.hp);
-                        if (healAmt > 0) { ent.hp += healAmt; showFloat(ent.pos, `💚`); }
-                        log(`${ent.name} 💤 🔋-${consumed} ❤️+${healAmt}`);
-                    }
-                }
+                        let rate = (ent.maxHp < 20) ? 5 : 2; 
+                        let healPower = consumed * rate; 
+                        let healAmt = Math.min(healPower, ent.maxHp - ent.hp);
+                        if (healAmt > 0) { 
+                        ent.hp += healAmt; 
+                        showFloat(ent.pos, `💚`); 
+                        log(`${ent.name} 🐌 蟄伏 🔋-${consumed} ❤️+${healAmt} (1🔋=${rate}❤️)`);
+        } else {
+                        log(`${ent.name} 🐌 蟄伏 (已滿血) 🔋-${consumed}`);
+        }
+    }
+}
                 
                 if (effect === 'diapause') {
                     if (ent.food === 0) {
                         let adjs = getAdjacents(ent.pos);
                         let hasFoodNear = adjs.some(idx => mapData[idx].hasFood) || mapData[ent.pos].hasFood;
-                        if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+1 (${ent.food+1}/3)`); gainFood(ent, 1); showFloat(ent.pos, `🐞`); }
+                        if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+2 (${ent.food+2}/3)`); gainFood(ent, 2); showFloat(ent.pos, `🐞`); }
                     }
                 }
                 if (effect === 'spore') {
@@ -2315,7 +2327,7 @@
             logContent += `<div class="combat-detail">🪼 膠體 (距離>1) ➔ 必定閃避</div>`;
             showFloat(def.pos, "🪼");
         } else {
-            let rollResult = opposedRoll(atkData.total, 6, dodgeData.total, 6);
+            let rollResult = opposedRoll(atkData.total, 6, dodgeData.total, 4);
             dodgeResult = rollResult.winner;
             let atkStr = formatRollDetails(atkData.breakdown, rollResult.rollsA);
             let defStr = formatRollDetails(dodgeData.breakdown, rollResult.rollsB);
@@ -2337,7 +2349,7 @@
             }
         } else {
             logContent += `<div class="combat-phase"><span class="phase-tag">2️⃣ 防禦</span></div>`;
-            let rollResult = opposedRoll(atkData.total, 6, defData.total, 6);
+            let rollResult = opposedRoll(atkData.total, 6, defData.total, 8);
             let defResult = rollResult.winner;
             let atkStr = formatRollDetails(atkData.breakdown, rollResult.rollsA);
             let defStr = formatRollDetails(defData.breakdown, rollResult.rollsB);
@@ -2349,9 +2361,10 @@
                 showFloat(def.pos, "🛡️");
                 finalOutcome = "🛡️ 格擋";
             } else {
-                let hitMsg = def.armor > 0 ? "💥 命中 (-1💙)" : "💥 命中 (-1HP)";
+                let dmg = 1 + (2 * atkData.total);
+                let hitMsg = def.armor > 0 ? `💥 命中 (-${dmg}💙)` : `💥 命中 (-${dmg}HP)`;
                 logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
-                applyDamage(def, 1, atk, false, true);
+                applyDamage(def, dmg, atk, false, true);
                 finalOutcome = "💥 命中";
             }
         }
@@ -2364,11 +2377,11 @@
                 let counterData = getCounterDice(def, atk);
                 let atkDodgeData = getDodgeDice(atk, def); 
                 let atkDefData = getDefDice(atk, def);     
-                let cDodgeResultData = opposedRoll(counterData.total, 6, atkDodgeData.total, 4);
+                let cDodgeResultData = opposedRoll(counterData.total, 6, atkDodgeData.total, 8);
                 let cAtkStr = formatRollDetails(counterData.breakdown, cDodgeResultData.rollsA);
                 let cDefStr = formatRollDetails(atkDodgeData.breakdown, cDodgeResultData.rollsB);
                 logContent += `<div class="combat-roll atk">${cAtkStr} (d6)</div>`;
-                logContent += `<div class="combat-roll def">${cDefStr} <small>(d4)</small></div>`;
+                logContent += `<div class="combat-roll def">${cDefStr} <small>(d8)</small></div>`;
                 let cDodgeResult = cDodgeResultData.winner;
                 if(cDodgeResult === 'def') {
                     logContent += `<div class="combat-result success">攻擊者 💨 閃過反擊</div>`;
@@ -2386,9 +2399,10 @@
                         if(atk.triggerOrder.includes('strangle') && def.ap < atk.ap) {
                             logContent += `<div class="combat-result success">${atk.name} 🐍 免疫反擊</div>`;
                         } else {
-                            let counterHitMsg = atk.armor > 0 ? "💥 被反擊受傷 (-1💙)" : "💥 被反擊受傷 (-1HP)";
+                            let cDmg = 1 + def.maxHp + counterData.total;
+                            let counterHitMsg = atk.armor > 0 ? `💥 被反擊受傷 (-${cDmg}💙)` : `💥 被反擊受傷 (-${cDmg}HP)`;
                             logContent += `<div class="combat-result fail">${counterHitMsg}</div>`;
-                            applyDamage(atk, 1, def, false, false);
+                            applyDamage(atk, cDmg, def, false, false);
                         }
                     }
                 }
@@ -2653,10 +2667,10 @@
         }
         const specsList = [
             { n: '❤️ 生命', v: e.maxHp, base: 2 },
-            { n: '⚔️ 攻擊', v: effectiveAtk, base: e.atk },
             { n: '🛡️ 防禦', v: effectiveDef, base: e.def },
-            { n: '🏹 射程', v: e.range, base: e.range },
             { n: '💨 閃避', v: effectiveDodge, base: e.dodge },
+            { n: '🏹 射程', v: e.range, base: e.range },
+            { n: '⚔️ 攻擊', v: effectiveAtk, base: e.atk },
             { n: '🔄 反擊', v: e.counter, base: e.counter },
             { n: '🧱 攀岩', v: e.climb, base: e.climb },
             { n: '⛏️ 深掘', v: e.dig, base: e.dig }
@@ -2764,4 +2778,3 @@
 </script>
 </body>
 </html>
-
