@@ -283,20 +283,22 @@
 
         ROLE_PREFERENCE: {
             'Hunter': new Set([
-                'hibernation','devour','feint','strangle','ram','foodGuard','pounce',
-                'ambush','dive','range','counter'
+                'devour','hibernation','feint','strangle','ram','foodGuard','pounce',
+                'ambush','dive','range','dodge'
             ]),
             'Invasive': new Set([
+                'counter','def','dodge'
+            ]),
+            'Prey': new Set([
+
+            ]),
+            'Universal': new Set([
+                'parasite','photosynthesis','marineSnow','filterfeed','diapause',
                 'radiation','molt','regeneration','pachyderms','autotomy',
                 'web','gigantism','spore','snatch','colloid','mimicry',
                 'stinkGland','explode','tonicImmobility','eyespots','burrow',
-                'shrink','hibernation','hp','dodge','def'
-            ]),
-            'Prey': new Set([
-                'parasite','photosynthesis','marineSnow','filterfeed','diapause'
-            ]),
-            'Universal': new Set([
-                'speed','daywalker','nightstalker','dig','climb'
+                'shrink','hibernation','hp','dodge','def',
+                'speed','daywalker','nightstalker','dig','climb',
             ])
         },
 
@@ -686,7 +688,7 @@
         assignRole: function(ent) {
             const has = (type) => ent.heldCards.some(c => c.type === type) || ent.triggerOrder.includes(type);
             let naturalRole = 'Prey';
-            if (has('hibernation') || has('devour')) { naturalRole = 'Hunter'; } else if (has('radiation') || has('regeneration') || has('pachyderms')) { naturalRole = 'Invasive'; }
+            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('regeneration') || has('pachyderms') || has('hibernation')) { naturalRole = 'Invasive'; }
             let finalRole = naturalRole;
             if (ent._assignedRole) {
                 const prev = ent._assignedRole;
@@ -1301,7 +1303,7 @@
         evolveDeck = [];
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
-        consumables.forEach(c => add(c.t, 5, c.n));
+        consumables.forEach(c => add(c.t, 3, c.n));
         const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦎 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
@@ -1354,7 +1356,7 @@
                 id: r.id, name: r.name, type: r.type, pos: starts[i], isDead: false,
                 maxHp: 2, hp: 2, armor: 0, ap: 0, food: 3, card: cards[i], 
                 atk:0, def:0, range:0, counter:0, dodge:0, 
-                speed:0, climb:0, dig:0, regen:0, fakeDeath:false,
+                speed:0, climb:0, dig:0, fakeDeath:false,
                 movesFree: 0,
                 heldCards: [], triggerOrder: [], radiationLayers: 0, autotomyUsedPhase: null, feintUsedTurn: false     
             });
@@ -1486,17 +1488,26 @@
         ent.triggerOrder.forEach(effect => {
             if (effect === 'speed') { ent.movesFree += ent.speed; }
             if (effect === 'regeneration') {
-                if(ent.hp < ent.maxHp) {
-                         let healAmt = 2;
+    if(!ent.isDead && ent.hp < ent.maxHp) {
+        
+        // 1. 依照你的設計：算預計補血量，並決定名稱
+        let expectedHeal = 2;
+        let skillName = "再生";
+        
         if (ent.maxHp >= 20) {
-            healAmt = Math.floor(ent.maxHp * 0.2); 
-            log(`${ent.name} 🪱 超再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
-        } else {
-            log(`${ent.name} 🪱 再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+            expectedHeal = Math.floor(ent.maxHp * 0.2); 
+            skillName = "超再生";
         }
-        healAmt = Math.min(healAmt, ent.maxHp - ent.hp);
-        ent.hp += healAmt; 
+
+        // 2. 嚴格把關：算出「實際」補了多少 (確保不會超過上限)
+        let actualHeal = Math.min(expectedHeal, ent.maxHp - ent.hp);
+        
+        // 3. 真正加血！
+        ent.hp += actualHeal; 
         showFloat(ent.pos, `🪱`); 
+        
+        // 4. 加完血之後，才印出 Log！(這時候的 ent.hp 就會是滿血的狀態了)
+        log(`${ent.name} 🪱 ${skillName} ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
     }
 }
             if (effect === 'photosynthesis') {
@@ -1759,9 +1770,10 @@
                 let bonusHp = ent.dodge * 2; ent.maxHp += bonusHp; ent.hp += bonusHp; ent.dodge = 0;
             }
         }
-        if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
-        if(card.type === 'regeneration') { ent.regen++; ent.maxHp++; ent.hp++; }
+        if(card.type === 'hibernation') { ent.maxHp += 17; ent.hp += 17; }
+        if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
+        if(card.type === 'devour') { ent.atk += 2; }
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
             else { 
@@ -1917,22 +1929,31 @@
             ent.movesFree = 0; 
             ent.triggerOrder.forEach(effect => {
                 if (effect === 'pachyderms') {
-                    if(ent.armor < ent.def) {
+                    let maxArmor = 6 + ent.def; if(ent.armor < maxArmor) {
                         ent.armor++; log(`${ent.name} 🦛 💙+1(Max:${ent.def})`); showFloat(ent.pos, "💙");
                     }
                 }
                 if (effect === 'regeneration') {
-                    if(!ent.isDead && ent.hp < ent.maxHp) {
-                         let healAmt = 2;
+    if(!ent.isDead && ent.hp < ent.maxHp) {
+        
+        // 1. 依照你的設計：算預計補血量，並決定名稱
+        let expectedHeal = 2;
+        let skillName = "再生";
+        
         if (ent.maxHp >= 20) {
-            healAmt = Math.floor(ent.maxHp * 0.2); 
-            log(`${ent.name} 🪱 超再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
-        } else {
-            log(`${ent.name} 🪱 再生 ❤️+${healAmt} (${ent.hp}/${ent.maxHp})`);
+            expectedHeal = Math.floor(ent.maxHp * 0.2); 
+            skillName = "超再生";
         }
-        healAmt = Math.min(healAmt, ent.maxHp - ent.hp);
-        ent.hp += healAmt; 
+
+        // 2. 嚴格把關：算出「實際」補了多少 (確保不會超過上限)
+        let actualHeal = Math.min(expectedHeal, ent.maxHp - ent.hp);
+        
+        // 3. 真正加血！
+        ent.hp += actualHeal; 
         showFloat(ent.pos, `🪱`); 
+        
+        // 4. 加完血之後，才印出 Log！(這時候的 ent.hp 就會是滿血的狀態了)
+        log(`${ent.name} 🪱 ${skillName} ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
     }
 }
                 
@@ -1940,7 +1961,7 @@
                     if (ent.ap > 0) {
                         let consumed = ent.ap;
                         ent.ap = 0; 
-                        let rate = (ent.maxHp < 20) ? 5 : 2; 
+                        let rate = (ent.maxHp < 20) ? 5 : 1; 
                         let healPower = consumed * rate; 
                         let healAmt = Math.min(healPower, ent.maxHp - ent.hp);
                         if (healAmt > 0) { 
@@ -1955,7 +1976,7 @@
                 
                 if (effect === 'diapause') {
                     if (ent.food === 0) {
-                        let adjs = getAdjacents(ent.pos);
+                        let adjs = get8Adjacents(ent.pos);
                         let hasFoodNear = adjs.some(idx => mapData[idx].hasFood) || mapData[ent.pos].hasFood;
                         if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+2 (${ent.food+2}/3)`); gainFood(ent, 2); showFloat(ent.pos, `🐞`); }
                     }
@@ -2556,14 +2577,24 @@
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
                 });
             } 
-            // FIX 4: 新增原子吐息範圍顯示，使用紅色格子提示十字範圍
+            // FIX 4: 新增原子吐息範圍顯示，根據當前 AP 決定提示長度
             else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
                 let r = Math.floor(activeEntity.pos / 9);
                 let c = activeEntity.pos % 9;
+                let range = activeEntity.ap; // 🎯 取得目前的 AP 作為最大射程
+                
                 mapData.forEach(cell => {
                     let cr = Math.floor(cell.index / 9);
                     let cc = cell.index % 9;
-                    if ((cr === r || cc === c) && cell.index !== activeEntity.pos) {
+                    
+                    // 檢查是否在同一行或同一列 (直線)
+                    let isStraightLine = (cr === r || cc === c);
+                    
+                    // 計算目標格子到你的直線距離
+                    let distance = Math.abs(cr - r) + Math.abs(cc - c); 
+                    
+                    // 🎯 條件：必須是直線、不能是自己(距離>0)，而且距離必須 <= 你的 AP
+                    if (isStraightLine && distance > 0 && distance <= range) {
                         document.getElementById(`cell-${cell.index}`).classList.add('highlight-attack');
                     }
                 });
