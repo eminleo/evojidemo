@@ -44,7 +44,7 @@
         
         #hud { 
             flex: 0 0 auto; 
-            border-bottom: 2px solid #666; 
+            border-bottom: 1px dashed #666; 
             padding: 5px 10px; 
             background-color: var(--bg-paper);
             background-image: var(--tex-paper);
@@ -81,7 +81,7 @@
             width: 100%; display: flex; justify-content: center; padding: 4px 0; 
             background-color: var(--bg-paper);
             background-image: var(--tex-paper);
-            border-bottom: 2px solid #666; position: relative; z-index: 50; min-height: 50px; align-items: center; 
+            border-bottom: 1px dashed #666; position: relative; z-index: 50; min-height: 50px; align-items: center; 
         }
         #action-menu { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; padding: 0 5px; }
         .menu-btn { min-width: 65px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px;}
@@ -257,17 +257,16 @@
     const HivemindAI = {
         HARD_RANKING: [
             'parasite', 'radiation', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
-            'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
+            'daywalker', 'nightstalker', 'thigmotaxis', 'photosynthesis', 'marineSnow', 'filterfeed',
             'diapause', 'autotomy', 'web', 'gigantism', 'devour',
-            'spore', 'snatch', 'colloid', 'mimicry', 'stinkGland', 'explode',
-            'dig', 'climb', 'feint', 'strangle',
+            'ram', 'spore', 'snatch', 'colloid', 'mimicry', 'stinkGland', 'explode',
             'tonicImmobility', 'eyespots', 'burrow', 'shrink',
-            'ram', 'foodGuard', 'pounce', 'ambush', 'dive', 'range',
-            'counter', 'def', 'dodge', 'hp'
+            'climb', 'def', 'dodge', 'counter', 'hp', 'dig',
+            'strangle', 'feint', 'pounce', 'foodGuard', 'ambush', 'dive', 'range'
         ],
 
         T0_CARDS: new Set([
-            'parasite', 'radiation', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
+            'parasite', 'radiation', 'ram', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
             'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
             'diapause', 'autotomy', 'web', 'gigantism', 'devour'
         ]),
@@ -283,17 +282,17 @@
 
         ROLE_PREFERENCE: {
             'Hunter': new Set([
-                'devour','hibernation','feint','strangle','ram','foodGuard','pounce',
-                'ambush','dive','range','dodge'
+                'devour','hibernation','feint','strangle','foodGuard','pounce',
+                'ambush','dive','range','dodge','climb'
             ]),
             'Invasive': new Set([
-                'counter','def','dodge'
+                'counter','def'
             ]),
             'Prey': new Set([
 
             ]),
             'Universal': new Set([
-                'parasite','photosynthesis','marineSnow','filterfeed','diapause',
+                'ram','parasite','photosynthesis','marineSnow','filterfeed','diapause',
                 'radiation','molt','regeneration','pachyderms','autotomy',
                 'web','gigantism','spore','snatch','colloid','mimicry',
                 'stinkGland','explode','tonicImmobility','eyespots','burrow',
@@ -701,9 +700,11 @@
         getDist: function(p1, p2) { return Math.abs(Math.floor(p1/9) - Math.floor(p2/9)) + Math.abs(p1%9 - p2%9); },
 
         getSafeRadius: function(ai) {
-            let radius = 2;
-            if (ai.heldCards.some(c=>c.type==='radiation')) radius = 3;
-            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 3;
+            let radius = 1;
+            if (ai.heldCards.some(c=>c.type==='radiation')) radius = 2;
+            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 2;
+            if (ai.heldCards.some(c=>c.type==='snatch')) radius = 2;
+            if (ai.heldCards.some(c=>c.type==='spore')) radius = 2;
             return radius;
         },
 
@@ -783,7 +784,7 @@
         canHunterAttack: function(hunter, player, gameState) {
             if (hunter.range < 1) return false;
             if (hunter.dig < 1) return false;
-            const playerDefSum = player.hp + player.armor + player.def + player.dodge + player.counter;
+            const playerDefSum = player.def + player.dodge + player.counter;
             if (hunter.atk <= playerDefSum) return false;
             if (gameState.mapData[player.pos].type === 'rock' && player.climb > hunter.climb) return false;
             return true;
@@ -1304,7 +1305,7 @@
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
         consumables.forEach(c => add(c.t, 3, c.n));
-        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦎 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
     }
@@ -1408,6 +1409,10 @@
 
     function startPhase(phaseName) {
         currentPhase = phaseName;
+        // --- 貼在這裡 ---
+    if (currentRound >= 20) {
+        triggerR20Collapse(); // 回合 20 開始，日夜階段一開始都崩一格
+    }
         window.currentPhaseId = currentRound + '-' + currentPhase; 
         subPhase = 'wait';
         renderPhaseButton('processing');
@@ -1507,7 +1512,7 @@
         showFloat(ent.pos, `🪱`); 
         
         // 4. 加完血之後，才印出 Log！(這時候的 ent.hp 就會是滿血的狀態了)
-        log(`${ent.name} 🪱 ${skillName} ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
+        log(`${ent.name} 🪱 ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
     }
 }
             if (effect === 'photosynthesis') {
@@ -1656,13 +1661,26 @@
                 btn.onclick = () => enterActiveSkillMode('ram', 2);
                 actionMenu.appendChild(btn);
             }
-            // FIX: Atomic breath threshold updated to 54
-            if(ent.radiationLayers > 54 && ent.ap > 0) {
-                 let btn = document.createElement('button');
-                 btn.className = 'menu-btn skill';
-                 btn.innerHTML = `<span>🦖 原子吐息</span><span class="menu-cost">ALL 🔋</span>`;
-                 btn.onclick = () => enterActiveSkillMode('atomic_breath', ent.ap);
-                 actionMenu.appendChild(btn);
+            // 🦖 修理：只有射程內有活著的 AI 敵人才顯示按鈕
+            if (ent.radiationLayers > 54 && ent.ap > 0) {
+                let r = Math.floor(ent.pos / 9);
+                let c = ent.pos % 9;
+                // 檢查四個方向是否有目標
+                let hasTarget = entities.some(target => {
+                    if (target.isDead || target.id === ent.id) return false;
+                    let tr = Math.floor(target.pos / 9);
+                    let tc = target.pos % 9;
+                    let dist = Math.abs(tr - r) + Math.abs(tc - c);
+                    return (tr === r || tc === c) && dist <= ent.ap;
+                });
+
+                if (hasTarget) {
+                    let btn = document.createElement('button');
+                    btn.className = 'menu-btn skill';
+                    btn.innerHTML = `<span>🦖 原子吐息</span><span class="menu-cost">ALL 🔋</span>`;
+                    btn.onclick = () => enterActiveSkillMode('atomic_breath', ent.ap);
+                    actionMenu.appendChild(btn);
+                }
             }
             let endBtn = document.createElement('button');
             endBtn.className = 'menu-btn';
@@ -1770,7 +1788,7 @@
                 let bonusHp = ent.dodge * 2; ent.maxHp += bonusHp; ent.hp += bonusHp; ent.dodge = 0;
             }
         }
-        if(card.type === 'hibernation') { ent.maxHp += 17; ent.hp += 17; }
+        if(card.type === 'hibernation') { ent.maxHp += 7; ent.hp += 7; }
         if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
         if(card.type === 'devour') { ent.atk += 2; }
@@ -1860,6 +1878,54 @@
         } 
     }
 
+// --- 貼在 turnToVoid 的大括號後面 ---
+
+// 檢查地圖連不連通：假裝拿走一格，看看大家還能不能見面
+function checkMapConnectivity(simulatedVoidIdx) {
+    const targets = entities.filter(e => !e.isDead).map(e => e.pos);
+    if (targets.length <= 1) return true;
+
+    const startPos = targets[0];
+    const visited = new Set();
+    const queue = [startPos];
+    visited.add(startPos);
+
+    while (queue.length > 0) {
+        const curr = queue.shift();
+        const neighbors = getAdjacents(curr);
+        for (let next of neighbors) {
+            if (mapData[next].type !== 'void' && next !== simulatedVoidIdx && !visited.has(next)) {
+                visited.add(next);
+                queue.push(next);
+            }
+        }
+    }
+    return targets.every(pos => visited.has(pos));
+}
+
+// R20 坍塌邏輯
+function triggerR20Collapse() {
+    // 找出符合條件的格子：不是虛空、[上面沒人]、且上下左右 4 邊都是實心的
+    let candidates = mapData.filter(c => {
+        if (c.type === 'void') return false;
+        if (c.entityId !== null) return false; // 有人在上面就不崩
+
+        const neighbors = getAdjacents(c.index);
+        return neighbors.length === 4 && neighbors.every(n => mapData[n].type !== 'void');
+    });
+
+    candidates.sort(() => Math.random() - 0.5); // 隨機挑
+
+    for (let target of candidates) {
+        if (checkMapConnectivity(target.index)) {
+            log(`🌋 R${currentRound} 地殼變動：[${target.row},${target.col}] 消失了！`);
+            turnToVoid(target.index); 
+            return; 
+        }
+    }
+    log("🌋 地圖結構已達穩定。");
+}
+
     function victimKill(victim, killer = null) {
         victim.isDead = true;
         victim.hp = 0;
@@ -1930,7 +1996,7 @@
             ent.triggerOrder.forEach(effect => {
                 if (effect === 'pachyderms') {
                     let maxArmor = 6 + ent.def; if(ent.armor < maxArmor) {
-                        ent.armor++; log(`${ent.name} 🦛 💙+1(Max:${ent.def})`); showFloat(ent.pos, "💙");
+                        ent.armor++; log(`${ent.name} 🦛 💙+1(Max:${maxArmor})`); showFloat(ent.pos, "💙");
                     }
                 }
                 if (effect === 'regeneration') {
@@ -1961,15 +2027,15 @@
                     if (ent.ap > 0) {
                         let consumed = ent.ap;
                         ent.ap = 0; 
-                        let rate = (ent.maxHp < 20) ? 5 : 1; 
+                        let rate = (ent.maxHp < 10) ? 5 : 1; 
                         let healPower = consumed * rate; 
                         let healAmt = Math.min(healPower, ent.maxHp - ent.hp);
                         if (healAmt > 0) { 
                         ent.hp += healAmt; 
                         showFloat(ent.pos, `💚`); 
-                        log(`${ent.name} 🐌 蟄伏 🔋-${consumed} ❤️+${healAmt} (1🔋=${rate}❤️)`);
+                        log(`${ent.name} 🐌 🔋-${consumed} ❤️+${healAmt} (1🔋=${rate}❤️)`);
         } else {
-                        log(`${ent.name} 🐌 蟄伏 (已滿血) 🔋-${consumed}`);
+                        log(`${ent.name} 🐌 🔋-${consumed}`);
         }
     }
 }
@@ -2300,7 +2366,7 @@
         if(dodgeEnt.triggerOrder.includes('mimicry')) {
             let cType = mapData[dodgeEnt.pos].type;
             if(cType === 'rock' || cType === 'land') {
-                total++; breakdown.push({source: '🦎', val: 1});
+                total++; breakdown.push({source: '🦋', val: 1});
             }
         }
         if(dodgeEnt.triggerOrder.includes('burrow') && mapData[dodgeEnt.pos].type === 'hole') { 
@@ -2382,7 +2448,7 @@
                 showFloat(def.pos, "🛡️");
                 finalOutcome = "🛡️ 格擋";
             } else {
-                let dmg = 1 + (2 * atkData.total);
+                let dmg = 1 + atkData.total;
                 let hitMsg = def.armor > 0 ? `💥 命中 (-${dmg}💙)` : `💥 命中 (-${dmg}HP)`;
                 logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
                 applyDamage(def, dmg, atk, false, true);
@@ -2420,7 +2486,7 @@
                         if(atk.triggerOrder.includes('strangle') && def.ap < atk.ap) {
                             logContent += `<div class="combat-result success">${atk.name} 🐍 免疫反擊</div>`;
                         } else {
-                            let cDmg = 1 + def.maxHp + counterData.total;
+                            let cDmg = Math.floor(1 + 0.5 * (def.maxHp + counterData.total));
                             let counterHitMsg = atk.armor > 0 ? `💥 被反擊受傷 (-${cDmg}💙)` : `💥 被反擊受傷 (-${cDmg}HP)`;
                             logContent += `<div class="combat-result fail">${counterHitMsg}</div>`;
                             applyDamage(atk, cDmg, def, false, false);
@@ -2577,28 +2643,38 @@
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
                 });
             } 
-            // FIX 4: 新增原子吐息範圍顯示，根據當前 AP 決定提示長度
+            // 🎯 修理：根據當前 AP 決定發光長度，且只發光有敵人的方向
             else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
                 let r = Math.floor(activeEntity.pos / 9);
                 let c = activeEntity.pos % 9;
-                let range = activeEntity.ap; // 🎯 取得目前的 AP 作為最大射程
-                
-                mapData.forEach(cell => {
-                    let cr = Math.floor(cell.index / 9);
-                    let cc = cell.index % 9;
-                    
-                    // 檢查是否在同一行或同一列 (直線)
-                    let isStraightLine = (cr === r || cc === c);
-                    
-                    // 計算目標格子到你的直線距離
-                    let distance = Math.abs(cr - r) + Math.abs(cc - c); 
-                    
-                    // 🎯 條件：必須是直線、不能是自己(距離>0)，而且距離必須 <= 你的 AP
-                    if (isStraightLine && distance > 0 && distance <= range) {
-                        document.getElementById(`cell-${cell.index}`).classList.add('highlight-attack');
+                let range = activeEntity.ap;
+
+                // 先找出哪些方向有敵人
+                let validDirections = [];
+                entities.forEach(target => {
+                    if (target.isDead || target.id === activeEntity.id) return;
+                    let tr = Math.floor(target.pos / 9);
+                    let tc = target.pos % 9;
+                    let dist = Math.abs(tr - r) + Math.abs(tc - c);
+                    if (dist <= range) {
+                        if (tr === r) validDirections.push({dr: 0, dc: Math.sign(tc - c)});
+                        if (tc === c) validDirections.push({dr: Math.sign(tr - r), dc: 0});
+                    }
+                });
+
+                // 只讓有敵人的那幾條直線發光
+                validDirections.forEach(dir => {
+                    for (let i = 1; i <= range; i++) {
+                        let nr = r + dir.dr * i;
+                        let nc = c + dir.dc * i;
+                        if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+                            let cellIdx = nr * 9 + nc;
+                            document.getElementById(`cell-${cellIdx}`).classList.add('highlight-attack');
+                        } else break;
                     }
                 });
             }
+
         }
         renderStatsContent();
     }
