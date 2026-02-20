@@ -1323,30 +1323,52 @@
     }
 
     function createMap() {
-        let pool = Array(16).fill('hole').concat(Array(16).fill('rock')).concat(Array(17).fill('land'));
-        pool.sort(()=>Math.random()-0.5);
-        let sudokuNums = generateSudokuMap();
-        let idx = 0;
-        for(let i=0; i<81; i++) {
-            let r=Math.floor(i/9), c=i%9;
-            let type = (r===0||r===8||c===0||c===8) ? 'land' : pool[idx++];
-            let num = sudokuNums[i];
-            mapData.push({ index:i, row:r, col:c, type:type, number:num, hasFood:false, entityId:null });
-            let div = document.createElement('div');
-            div.className = `cell terrain-${type}`; 
-            div.id = `cell-${i}`;
-            div.onclick = () => onCellClick(i);
-            let numTag = document.createElement('div');
-            numTag.className = 'cell-number'; numTag.innerText = num;
-            div.appendChild(numTag);
-            if(type !== 'land') {
-                let tm = document.createElement('div'); tm.className='terrain-marker';
-                tm.innerText = (type==='hole') ? '🕳️' : '🪨';
-                div.appendChild(tm);
-            }
-            gridEl.appendChild(div);
+    // 原本內圈有 49 格 (16洞 + 16岩 + 17陸)。
+    // 現在我們要讓正中心 (第40格) 固定變成虛空，所以隨機池減少 1 塊陸地，變成 48 格。
+    let pool = Array(16).fill('hole').concat(Array(16).fill('rock')).concat(Array(16).fill('land'));
+    pool.sort(()=>Math.random()-0.5);
+    
+    let sudokuNums = generateSudokuMap();
+    let idx = 0;
+
+    for(let i=0; i<81; i++) {
+        let r = Math.floor(i/9), c = i%9;
+        let type;
+
+        // --- 核心修改邏輯 ---
+        if (i === 40) {
+            type = 'void'; // 正中心 (第4行第4列) 固定為虛空
+        } else if (r === 0 || r === 8 || c === 0 || c === 8) {
+            type = 'land'; // 最外圍一圈固定為陸地
+        } else {
+            type = pool[idx++]; // 其他位置從隨機池抽取
         }
+        // ------------------
+
+        let num = sudokuNums[i];
+        mapData.push({ index:i, row:r, col:c, type:type, number:num, hasFood:false, entityId:null });
+        
+        // 建立格子的 HTML 元素
+        let div = document.createElement('div');
+        div.className = `cell terrain-${type}`; 
+        div.id = `cell-${i}`;
+        div.onclick = () => onCellClick(i);
+        
+        let numTag = document.createElement('div');
+        numTag.className = 'cell-number'; 
+        numTag.innerText = num;
+        div.appendChild(numTag);
+
+        // 如果不是陸地或虛空，添加地型圖示
+        if(type !== 'land' && type !== 'void') {
+            let tm = document.createElement('div'); 
+            tm.className = 'terrain-marker';
+            tm.innerText = (type === 'hole') ? '🕳️' : '🪨';
+            div.appendChild(tm);
+        }
+        gridEl.appendChild(div);
     }
+}
 
     function setupEntities() {
         let cards = [{name:"日1夜5", d:1, n:5, special:false},{name:"日2夜4", d:2, n:4, special:false},{name:"日3夜3", d:3, n:3, special:false},{name:"日4夜2", d:4, n:2, special:false},{name:"日5夜1", d:5, n:1, special:false},{name:"特別", d:0, n:0, special:true}].sort(()=>Math.random()-0.5);
