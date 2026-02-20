@@ -1395,7 +1395,7 @@
         }
         log(`🍖 補給: ${targets.join(',')}`);
         mapData.forEach(c => {
-            if(targets.includes(c.number) && !c.entityId && ![0,8,72,80].includes(c.index)) {
+            if(targets.includes(c.number) && !c.entityId && c.type !== 'void' && ![0,8,72,80].includes(c.index)) {
                 c.hasFood = true;
             }
         });
