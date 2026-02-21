@@ -1432,8 +1432,8 @@
     function startPhase(phaseName) {
         currentPhase = phaseName;
         // --- 貼在這裡 ---
-    if (currentRound >= 10 && Math.random() < 0.1) {
-        triggerR10Collapse(); // 回合 10 開始，日夜階段一開始10%崩一格
+    if (currentRound >= 2 && Math.random() < 0.2) {
+        triggerR10Collapse(); // 回合 10 開始，日夜階段一開始%崩一格
     }
         window.currentPhaseId = currentRound + '-' + currentPhase; 
         subPhase = 'wait';
