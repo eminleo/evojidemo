@@ -1432,8 +1432,8 @@
     function startPhase(phaseName) {
         currentPhase = phaseName;
         // --- 貼在這裡 ---
-    if (currentRound >= 20) {
-        triggerR20Collapse(); // 回合 20 開始，日夜階段一開始都崩一格
+    if (currentRound >= 10 && Math.random() < 0.1) {
+        triggerR10Collapse(); // 回合 10 開始，日夜階段一開始10%崩一格
     }
         window.currentPhaseId = currentRound + '-' + currentPhase; 
         subPhase = 'wait';
@@ -1810,10 +1810,10 @@
                 let bonusHp = ent.dodge * 2; ent.maxHp += bonusHp; ent.hp += bonusHp; ent.dodge = 0;
             }
         }
-        if(card.type === 'hibernation') { ent.maxHp += 7; ent.hp += 7; }
+        if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
-        if(card.type === 'devour') { ent.atk += 2; }
+        if(card.type === 'devour') { ent.atk += 3; }
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
             else { 
@@ -1925,27 +1925,32 @@ function checkMapConnectivity(simulatedVoidIdx) {
     return targets.every(pos => visited.has(pos));
 }
 
-// R20 坍塌邏輯
-function triggerR20Collapse() {
-    // 找出符合條件的格子：不是虛空、[上面沒人]、且上下左右 4 邊都是實心的
+// R10 坍塌邏輯
+function triggerR10Collapse() {
+    // 1. 找出符合條件的格子：不是虛空、上面沒人、且相鄰格子 <= 3 個
     let candidates = mapData.filter(c => {
         if (c.type === 'void') return false;
-        if (c.entityId !== null) return false; // 有人在上面就不崩
+        if (c.entityId !== null) return false; 
 
         const neighbors = getAdjacents(c.index);
-        return neighbors.length === 4 && neighbors.every(n => mapData[n].type !== 'void');
+        // 修改這裡：只要相鄰的實體格子小於等於 3 個（代表不夠穩固）就可能崩塌
+        return neighbors.length <= 3; 
     });
 
-    candidates.sort(() => Math.random() - 0.5); // 隨機挑
+    candidates.sort(() => Math.random() - 0.5);
 
     for (let target of candidates) {
         if (checkMapConnectivity(target.index)) {
-            log(`🌋 R${currentRound} 地殼變動：[${target.row},${target.col}] 消失了！`);
+            log(`🌋 R${currentRound} 地殼變動：[${target.row},${target.col}] 崩塌了！`);
             turnToVoid(target.index); 
+            
+            // 2. 核心修改：接入連鎖崩塌邏輯（cascadeVoid 會處理 >= 1 邊相接的連鎖反應）
+            cascadeVoid(); 
+            
             return; 
         }
     }
-    log("🌋 地圖結構已達穩定。");
+    log("🌋 目前地型尚算穩固。");
 }
 
     function victimKill(victim, killer = null) {
@@ -2064,9 +2069,9 @@ function triggerR20Collapse() {
                 
                 if (effect === 'diapause') {
                     if (ent.food === 0) {
-                        let adjs = get8Adjacents(ent.pos);
+                        let adjs = getAdjacents(ent.pos);
                         let hasFoodNear = adjs.some(idx => mapData[idx].hasFood) || mapData[ent.pos].hasFood;
-                        if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+2 (${ent.food+2}/3)`); gainFood(ent, 2); showFloat(ent.pos, `🐞`); }
+                        if (!hasFoodNear) { log(`${ent.name} 🐞 🍖+1 (${ent.food+1}/3)`); gainFood(ent, 1); showFloat(ent.pos, `🐞`); }
                     }
                 }
                 if (effect === 'spore') {
@@ -2228,7 +2233,7 @@ function triggerR20Collapse() {
                 let r1 = Math.floor(ent.pos / 9), c1 = ent.pos % 9;
                 let r2 = Math.floor(idx / 9), c2 = idx % 9;
 
-                // FIX 3: 禁止斜向攻擊
+                // 1. 檢查是否為直線 (禁止斜向)
                 if (r1 !== r2 && c1 !== c2) {
                     log(`${ent.name} 🚫 只能攻擊直線 (橫向或縱向)`);
                     return; 
@@ -2236,10 +2241,34 @@ function triggerR20Collapse() {
 
                 let dr = Math.sign(r2 - r1);
                 let dc = Math.sign(c2 - c1);
-                
                 if (dr === 0 && dc === 0) return;
-                
+
                 let apCost = window.activeSkillCost;
+                
+                // --- 🚀 新增的「偵查員」檢查邏輯 ---
+                let foundTarget = false;
+                for(let i = 1; i <= apCost; i++) {
+                    let nr = r1 + dr * i;
+                    let nc = c1 + dc * i;
+                    if(nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+                        let checkPos = nr * 9 + nc;
+                        let tid = mapData[checkPos].entityId;
+                        // 如果格子上有角色，且不是發動者自己
+                        if(tid && tid !== ent.id) {
+                            foundTarget = true;
+                            break; // 只要發現一個目標就夠了
+                        }
+                    } else break; // 超出邊界就停止偵查
+                }
+
+                // 如果偵查完發現完全沒目標，就結束函數
+                if (!foundTarget) {
+                    log(`${ent.name} 🚫 範圍內沒有目標，取消發射`);
+                    return; 
+                }
+                // -----------------------------
+
+                // 2. 只有確定有目標後，才扣除 AP 並執行發射
                 ent.ap = 0;
                 log(`${ent.name} 🦖 原子吐息 (🔋${apCost})`);
                 
@@ -2259,9 +2288,7 @@ function triggerR20Collapse() {
                                 }
                             }
                         }
-                    } else {
-                        break;
-                    }
+                    } else break;
                 }
                 subPhase = 'action';
                 renderGrid(); updateHUD(); startActionPhase(ent);
