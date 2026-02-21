@@ -2823,7 +2823,9 @@ function triggerRCollapse() {
         if(e.triggerOrder.includes('eyespots') && e.hp > 3) effectiveDodge += 3;
         if(e.triggerOrder.includes('mimicry')) {
              let cType = mapData[e.pos].type;
-             if(cType === 'rock' || cType === 'land') effectiveDodge += 1;
+             if(cType === 'rock' || cType === 'land') effectiveDodge += 1; }
+        if (e.triggerOrder.includes('gigantism')) {
+    effectiveDodge = 0;
         }
         const specsList = [
             { n: '❤️ 生命', v: e.maxHp, base: 2 },
@@ -2937,4 +2939,3 @@ function triggerRCollapse() {
 </script>
 </body>
 </html>
-
