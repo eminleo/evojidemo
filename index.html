@@ -687,7 +687,7 @@
         assignRole: function(ent) {
             const has = (type) => ent.heldCards.some(c => c.type === type) || ent.triggerOrder.includes(type);
             let naturalRole = 'Prey';
-            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('regeneration') || has('pachyderms') || has('hibernation')) { naturalRole = 'Invasive'; }
+            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('molt') && has('regeneration')) { naturalRole = 'Invasive'; }
             let finalRole = naturalRole;
             if (ent._assignedRole) {
                 const prev = ent._assignedRole;
@@ -724,7 +724,6 @@
 
         checkInstantKill: function(ai, player, gameState) {
             const dist = this.getDist(ai.pos, player.pos);
-            // FIX: Atomic breath threshold updated to 54
             if (ai.radiationLayers > 54 && ai.ap > 0) {
                  const r1 = Math.floor(ai.pos/9), c1 = ai.pos%9;
                  const r2 = Math.floor(player.pos/9), c2 = player.pos%9;
@@ -797,7 +796,7 @@
             gameState.mapData.forEach(cell => {
                  if (cell.type !== 'void') {
                      const neighbors = this.getTopologyNeighbors(cell.index, gameState);
-                     if (neighbors.length <= 2) {
+                     if (neighbors.length <= 3) {
                          dangers.add(cell.index);
                          neighbors.forEach(n => dangers.add(n));
                      }
@@ -1031,7 +1030,7 @@
 
     function executeAiRam(ent, targetPos) {
         let target = entities.find(e => e.id === mapData[targetPos].entityId);
-        log(`${ent.name} 🐏 撞擊 ${target.name}`);
+        log(`${ent.name}  Rams ${target.name}`);
         ent.ap -= 2;
         
         let cardIdx = ent.heldCards.findIndex(c => c.type === 'ram');
@@ -1058,7 +1057,6 @@
                 target.pos = destIdx;
                 log(`${target.name} 🔙 被擊退`);
                 
-                // FIX: Ram Logic - Check for void first
                 if(destCell.type === 'void') {
                     log(`${target.name} 🌌 被推入虛空`);
                     victimKill(target, ent);
@@ -1271,7 +1269,6 @@
         if (hasSave) {
             if(loadGame()) {
                 setTimeout(() => {
-                    // FIX 2: 修正刷新後跳階段的 Bug。現在總是嘗試繼續回合，而不是強制切換階段
                     startNextTurn();
                 }, 500);
                 return;
@@ -1305,7 +1302,7 @@
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
         consumables.forEach(c => add(c.t, 3, c.n));
-        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:'🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' leopards 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'鯊魚 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
     }
@@ -1323,8 +1320,6 @@
     }
 
     function createMap() {
-    // 原本內圈有 49 格 (16洞 + 16岩 + 17陸)。
-    // 現在我們要讓正中心 (第40格) 固定變成虛空，所以隨機池減少 1 塊陸地，變成 48 格。
     let pool = Array(16).fill('hole').concat(Array(16).fill('rock')).concat(Array(16).fill('land'));
     pool.sort(()=>Math.random()-0.5);
     
@@ -1335,20 +1330,17 @@
         let r = Math.floor(i/9), c = i%9;
         let type;
 
-        // --- 核心修改邏輯 ---
         if (i === 40) {
-            type = 'void'; // 正中心 (第4行第4列) 固定為虛空
+            type = 'void'; 
         } else if (r === 0 || r === 8 || c === 0 || c === 8) {
-            type = 'land'; // 最外圍一圈固定為陸地
+            type = 'land'; 
         } else {
-            type = pool[idx++]; // 其他位置從隨機池抽取
+            type = pool[idx++]; 
         }
-        // ------------------
 
         let num = sudokuNums[i];
         mapData.push({ index:i, row:r, col:c, type:type, number:num, hasFood:false, entityId:null });
         
-        // 建立格子的 HTML 元素
         let div = document.createElement('div');
         div.className = `cell terrain-${type}`; 
         div.id = `cell-${i}`;
@@ -1359,7 +1351,6 @@
         numTag.innerText = num;
         div.appendChild(numTag);
 
-        // 如果不是陸地或虛空，添加地型圖示
         if(type !== 'land' && type !== 'void') {
             let tm = document.createElement('div'); 
             tm.className = 'terrain-marker';
@@ -1431,9 +1422,8 @@
 
     function startPhase(phaseName) {
         currentPhase = phaseName;
-        // --- 貼在這裡 ---
-    if (currentRound >= 2 && Math.random() < 0.2) {
-        triggerRCollapse(); // 回合開始，日夜階段一開始%崩一格
+    if (currentRound >= 2 && Math.random() < 0.1) {
+        triggerRCollapse(); 
     }
         window.currentPhaseId = currentRound + '-' + currentPhase; 
         subPhase = 'wait';
@@ -1516,24 +1506,15 @@
             if (effect === 'speed') { ent.movesFree += ent.speed; }
             if (effect === 'regeneration') {
     if(!ent.isDead && ent.hp < ent.maxHp) {
-        
-        // 1. 依照你的設計：算預計補血量，並決定名稱
         let expectedHeal = 1;
         let skillName = "再生";
-        
         if (ent.maxHp >= 20) {
             expectedHeal = Math.floor(ent.maxHp * 0.1); 
             skillName = "超再生";
         }
-
-        // 2. 嚴格把關：算出「實際」補了多少 (確保不會超過上限)
         let actualHeal = Math.min(expectedHeal, ent.maxHp - ent.hp);
-        
-        // 3. 真正加血！
         ent.hp += actualHeal; 
         showFloat(ent.pos, `🪱`); 
-        
-        // 4. 加完血之後，才印出 Log！(這時候的 ent.hp 就會是滿血的狀態了)
         log(`${ent.name} 🪱 ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
     }
 }
@@ -1564,19 +1545,17 @@
                 }
             }
             
-            // FIX: Radiation (Card) - +1 layer at turn start
             if (effect === 'radiation') {
                 ent.radiationLayers++;
                 showFloat(ent.pos, `☢️`);
             }
 
-            // FIX: Radioactive Pollution (Status) - Damage check at turn start
             if (effect === 'radioactivePollution') {
-                let d19 = sum(roll(1, 19)); // Changed from d20
+                let d19 = sum(roll(1, 19)); 
                 let bonus = Math.floor(ent.radiationLayers / 100);
                 let dmg = 1 + bonus;
                 if (ent.radiationLayers > d19) {
-                    let isHigh = ent.radiationLayers > 19; // Changed from > 20
+                    let isHigh = ent.radiationLayers > 19; 
                     let targets = isHigh ? get8Adjacents(ent.pos) : getAdjacents(ent.pos);
                     let hit = false;
                     targets.forEach(idx => {
@@ -1683,11 +1662,9 @@
                 btn.onclick = () => enterActiveSkillMode('ram', 2);
                 actionMenu.appendChild(btn);
             }
-            // 🦖 修理：只有射程內有活著的 AI 敵人才顯示按鈕
             if (ent.radiationLayers > 54 && ent.ap > 0) {
                 let r = Math.floor(ent.pos / 9);
                 let c = ent.pos % 9;
-                // 檢查四個方向是否有目標
                 let hasTarget = entities.some(target => {
                     if (target.isDead || target.id === ent.id) return false;
                     let tr = Math.floor(target.pos / 9);
@@ -1884,7 +1861,6 @@
         mapData[idx].type = 'void';
         mapData[idx].hasFood = false;
 
-        // FIX: Visual update - remove terrain markers immediately
         let div = document.getElementById(`cell-${idx}`);
         if(div) {
             div.className = 'cell terrain-void';
@@ -1900,9 +1876,6 @@
         } 
     }
 
-// --- 貼在 turnToVoid 的大括號後面 ---
-
-// 檢查地圖連不連通：假裝拿走一格，看看大家還能不能見面
 function checkMapConnectivity(simulatedVoidIdx) {
     const targets = entities.filter(e => !e.isDead).map(e => e.pos);
     if (targets.length <= 1) return true;
@@ -1925,18 +1898,11 @@ function checkMapConnectivity(simulatedVoidIdx) {
     return targets.every(pos => visited.has(pos));
 }
 
-// R10 坍塌邏輯
 function triggerRCollapse() {
-    // 1. 找出符合條件的格子：不是虛空、上面沒人、且相鄰格子 <= 3 個
     let candidates = mapData.filter(c => {
     if (c.type === 'void') return false;
     if (c.entityId !== null) return false; 
-
-    // 【這裡是要修改的地方】
-    // 我們要數的是「還有多少格子連著」，而不是「地圖座標有幾個鄰居」
     const realNeighborCount = getNonVoidNeighborCount(c.index);
-    
-    // 如果連著的格子少於或等於 3，它就可能會崩塌
     return realNeighborCount <= 3; 
 });
 
@@ -1946,10 +1912,7 @@ function triggerRCollapse() {
         if (checkMapConnectivity(target.index)) {
             log(`🌋 R${currentRound} 地殼變動：[${target.row},${target.col}] 崩塌了！`);
             turnToVoid(target.index); 
-            
-            // 2. 核心修改：接入連鎖崩塌邏輯（cascadeVoid 會處理 <= 1 邊相接的連鎖反應）
             cascadeVoid(); 
-            
             return; 
         }
     }
@@ -2031,24 +1994,15 @@ function triggerRCollapse() {
                 }
                 if (effect === 'regeneration') {
     if(!ent.isDead && ent.hp < ent.maxHp) {
-        
-        // 1. 依照你的設計：算預計補血量，並決定名稱
-        let expectedHeal = 2;
+        let expectedHeal = 1;
         let skillName = "再生";
-        
         if (ent.maxHp >= 20) {
-            expectedHeal = Math.floor(ent.maxHp * 0.2); 
+            expectedHeal = Math.floor(ent.maxHp * 0.1); 
             skillName = "超再生";
         }
-
-        // 2. 嚴格把關：算出「實際」補了多少 (確保不會超過上限)
         let actualHeal = Math.min(expectedHeal, ent.maxHp - ent.hp);
-        
-        // 3. 真正加血！
         ent.hp += actualHeal; 
         showFloat(ent.pos, `🪱`); 
-        
-        // 4. 加完血之後，才印出 Log！(這時候的 ent.hp 就會是滿血的狀態了)
         log(`${ent.name} 🪱 ${skillName} ❤️+${actualHeal} (${ent.hp}/${ent.maxHp})`);
     }
 }
@@ -2092,13 +2046,12 @@ function triggerRCollapse() {
                     if(hit) log(`${ent.name} 🍄 周圍敵人 🔋-1`);
                 }
                 
-                // FIX: Radiation (Card) - Damage check at turn end
                 if (effect === 'radiation') {
-                    let d19 = sum(roll(1, 19)); // Changed from d20
+                    let d19 = sum(roll(1, 19)); 
                     let bonus = Math.floor(ent.radiationLayers / 100);
                     let dmg = 1 + bonus;
                     if (ent.radiationLayers > d19) {
-                        let isHigh = ent.radiationLayers > 19; // Changed from > 20
+                        let isHigh = ent.radiationLayers > 19; 
                         let targets = isHigh ? get8Adjacents(ent.pos) : getAdjacents(ent.pos);
                         let hit = false;
                         targets.forEach(idx => {
@@ -2118,11 +2071,9 @@ function triggerRCollapse() {
                             }
                         });
                         if(hit) log(`${ent.name} ☢️ 💥 (Lv${ent.radiationLayers}>🎲${d19})`);
-                        // REMOVED self damage here as per spec
                     }
                 }
                 
-                // FIX: Radioactive Pollution (Status) - +1 layer at turn end
                 if (effect === 'radioactivePollution') {
                      ent.radiationLayers++;
                      showFloat(ent.pos, `☢️`);
@@ -2216,7 +2167,6 @@ function triggerRCollapse() {
                             target.pos = destIdx;
                             log(`${target.name} 🔙 被擊退`);
                             
-                            // FIX: Ram Logic - Check for void first
                             if(destCell.type === 'void') {
                                 log(`${target.name} 🌌 被推入虛空`);
                                 victimKill(target, ent);
@@ -2236,7 +2186,6 @@ function triggerRCollapse() {
                 let r1 = Math.floor(ent.pos / 9), c1 = ent.pos % 9;
                 let r2 = Math.floor(idx / 9), c2 = idx % 9;
 
-                // 1. 檢查是否為直線 (禁止斜向)
                 if (r1 !== r2 && c1 !== c2) {
                     log(`${ent.name} 🚫 只能攻擊直線 (橫向或縱向)`);
                     return; 
@@ -2248,7 +2197,6 @@ function triggerRCollapse() {
 
                 let apCost = window.activeSkillCost;
                 
-                // --- 🚀 新增的「偵查員」檢查邏輯 ---
                 let foundTarget = false;
                 for(let i = 1; i <= apCost; i++) {
                     let nr = r1 + dr * i;
@@ -2256,21 +2204,17 @@ function triggerRCollapse() {
                     if(nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
                         let checkPos = nr * 9 + nc;
                         let tid = mapData[checkPos].entityId;
-                        // 如果格子上有角色，且不是發動者自己
                         if(tid && tid !== ent.id) {
                             foundTarget = true;
-                            break; // 只要發現一個目標就夠了
+                            break; 
                         }
-                    } else break; // 超出邊界就停止偵查
+                    } else break; 
                 }
 
-                // 如果偵查完發現完全沒目標，就結束函數
                 if (!foundTarget) {
                     return; 
                 }
-                // -----------------------------
 
-                // 2. 只有確定有目標後，才扣除 AP 並執行發射
                 ent.ap = 0;
                 log(`${ent.name} 🦖 原子吐息 (🔋${apCost})`);
                 
@@ -2483,7 +2427,7 @@ function triggerRCollapse() {
             if(atk.triggerOrder.includes('feint') && !atk.feintUsedTurn) {
                 atk.ap++; atk.feintUsedTurn = true;
                 logContent += `<div class="combat-note">${atk.name} 🐆 🔋+1</div>`;
-                showFloat(atk.pos, "🐆");
+                showFloat(atk.pos, " leopards ");
             }
         } else {
             logContent += `<div class="combat-phase"><span class="phase-tag">2️⃣ 防禦</span></div>`;
@@ -2534,8 +2478,8 @@ function triggerRCollapse() {
                     if(cDefResult === 'def') {
                         logContent += `<div class="combat-result success">攻擊者 🛡️ 擋下反擊</div>`;
                     } else {
-                        if(atk.triggerOrder.includes('strangle') && def.ap < atk.ap) {
-                            logContent += `<div class="combat-result success">${atk.name} 🐍 免疫反擊</div>`;
+                        if(atk.triggerOrder.includes('strangle') && atkData.total > counterData.total) {
+                        logContent += `<div class="combat-result success">${atk.name} 🐍 絞殺 (攻 ${atkData.total} > 反 ${counterData.total}) 免疫反擊</div>`;
                         } else {
                             let cDmg = Math.floor(1 + 0.5 * (def.maxHp + counterData.total));
                             let counterHitMsg = atk.armor > 0 ? `💥 被反擊受傷 (-${cDmg}💙)` : `💥 被反擊受傷 (-${cDmg}HP)`;
@@ -2580,7 +2524,7 @@ function triggerRCollapse() {
         
         if (isAttackHit && source && source.triggerOrder.includes('devour') && intendedHp <= 1) {
             log(`${source.name} 🦈 斬殺!`);
-            showFloat(target.pos, "🦈"); target.hp = 0; victimKill(target, source); return;
+            showFloat(target.pos, "鯊魚"); target.hp = 0; victimKill(target, source); return;
         }
         
         let isFatal = intendedHp <= 0;
@@ -2694,13 +2638,11 @@ function triggerRCollapse() {
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
                 });
             } 
-            // 🎯 修理：根據當前 AP 決定發光長度，且只發光有敵人的方向
             else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
                 let r = Math.floor(activeEntity.pos / 9);
                 let c = activeEntity.pos % 9;
                 let range = activeEntity.ap;
 
-                // 先找出哪些方向有敵人
                 let validDirections = [];
                 entities.forEach(target => {
                     if (target.isDead || target.id === activeEntity.id) return;
@@ -2713,7 +2655,6 @@ function triggerRCollapse() {
                     }
                 });
 
-                // 只讓有敵人的那幾條直線發光
                 validDirections.forEach(dir => {
                     for (let i = 1; i <= range; i++) {
                         let nr = r + dir.dr * i;
@@ -2882,7 +2823,6 @@ function triggerRCollapse() {
             }
         }
 
-        // FIX 1: 按鈕現在會先清除 localStorage 再重整，解決無法開新局的問題
         let bottomBtnHtml = `<button class="modal-btn" onclick="closeModal()">關閉</button>`;
         if (isGameOver) {
             bottomBtnHtml = `<button class="modal-btn" onclick="localStorage.removeItem('hivemind_save_v1'); location.reload()">開新一局</button>`;
