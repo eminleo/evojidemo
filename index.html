@@ -696,7 +696,14 @@
         assignRole: function(ent) {
             const has = (type) => ent.heldCards.some(c => c.type === type) || ent.triggerOrder.includes(type);
             let naturalRole = 'Prey';
-            if (has('devour')) { naturalRole = 'Hunter'; } else if (has('molt') && has('regeneration')) { naturalRole = 'Invasive'; }
+            if (has('devour')) { naturalRole = 'Hunter'; } else if ((has('molt') && has('regeneration')) ||
+        (has('molt') && has('hibernation')) ||
+        (has('regeneration') && has('hibernation')) ||
+        (has('pachyderms') && has('hibernation')) ||
+        (has('pachyderms') && has('regeneration')) ||
+        (has('gigantism') && has('regeneration')) ||
+        (has('gigantism') && has('hibernation')) ||
+        (has('gigantism') && has('pachyderms'))) { naturalRole = 'Invasive'; }
             let finalRole = naturalRole;
             if (ent._assignedRole) {
                 const prev = ent._assignedRole;
@@ -1834,7 +1841,9 @@
         if(card.type === 'climb') { ent.climb++; log(`${ent.name} 🧱 Lv${ent.climb}`); }
         
         if(card.type === 'gigantism') {
-            log(`${ent.name} 🦕 💨 → ❤️(x2)`);
+            ent.maxHp += 6; 
+            ent.hp += 6; 
+            log(`${ent.name} 🦕 ❤️+6 且 💨 → ❤️(x2)`);
             if(ent.dodge > 0) {
                 let bonusHp = ent.dodge * 2; ent.maxHp += bonusHp; ent.hp += bonusHp; ent.dodge = 0;
             }
@@ -2063,7 +2072,7 @@ function triggerRCollapse() {
                     if (ent.ap > 0) {
                         let consumed = ent.ap;
                         ent.ap = 0; 
-                        let rate = (ent.maxHp < 10) ? 5 : 1; 
+                        let rate = (ent.maxHp < 20) ? 5 : 2; 
                         let healPower = consumed * rate; 
                         let healAmt = Math.min(healPower, ent.maxHp - ent.hp);
                         if (healAmt > 0) { 
