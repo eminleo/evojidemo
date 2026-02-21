@@ -208,7 +208,7 @@
     <div id="hud">
         <div class="hud-top-row">
             <div class="hud-info-group" onclick="toggleFog()">
-                <div class="phase-info" id="phase-text">Dark Forest</div>
+                <div class="phase-info" id="phase-text">Evoji</div>
                 <div class="turn-info" id="turn-text">PWA Ready</div>
             </div>
             <div class="deck-controls">
@@ -334,10 +334,19 @@
             let currentPos = aiEntity.pos;
 
             if (actionBudget > 0) {
-                const killAction = this.checkInstantKill(aiEntity, scanResult.player, gameState);
-                if (killAction && actionBudget >= killAction.cost) {
-                    script.push(killAction);
-                    actionBudget -= killAction.cost;
+            const killAction = this.checkInstantKill(aiEntity, scanResult.player, gameState);
+            if (killAction) {
+                if (killAction.type === 'combo') {
+                    
+                    script.push(...killAction.steps);
+                    return script; 
+                } else {
+                   
+                    const cost = killAction.cost || 0;
+                    if (actionBudget >= cost) {
+                        script.push(killAction);
+                        actionBudget -= cost;
+                    }
                 }
             }
 
@@ -434,7 +443,7 @@
             }
 
             if (script.length === 0) script.push({ type: 'wait' });
-            return script;
+            return script;}
         },
 
         getExpandableMoves: function(currState, entity, gameState) {
@@ -723,41 +732,83 @@
         },
 
         checkInstantKill: function(ai, player, gameState) {
-            const dist = this.getDist(ai.pos, player.pos);
+            const playerR = Math.floor(player.pos / 9), playerC = player.pos % 9;
+            const playerTotalHp = player.hp + player.armor;
+
+            
             if (ai.radiationLayers > 54 && ai.ap > 0) {
-                 const r1 = Math.floor(ai.pos/9), c1 = ai.pos%9;
-                 const r2 = Math.floor(player.pos/9), c2 = player.pos%9;
-                 if (r1 === r2 || c1 === c2) {
-                     const spentAP = ai.ap;
-                     const damage = spentAP + 1 - dist;
-                     const playerHpTotal = player.hp + player.armor;
-                     if (damage >= playerHpTotal && !this.hasTeammateInLine(ai.pos, player.pos, gameState, ai.id, spentAP)) {
-                         const dr = Math.sign(r2 - r1);
-                         const dc = Math.sign(c2 - c1);
-                         return { type: 'skill', skill: 'atomic_breath', cost: ai.ap, target: player.pos, direction: [dr, dc] };
-                     }
-                 }
-            }
-            const hasRam = ai.heldCards.some(c => c.type === 'ram');
-            if (hasRam && dist === 1 && ai.ap >= 2) {
-                const ar = Math.floor(ai.pos/9), ac = ai.pos%9;
-                const tr = Math.floor(player.pos/9), tc = player.pos%9;
-                const dr = tr - ar, dc = tc - ac;
-                const pushR = tr + dr, pushC = tc + dc;
-                let isKill = false;
-                if (pushR < 0 || pushR > 8 || pushC < 0 || pushC > 8) {
-                    if (player.hp + player.armor <= 1) isKill = true;
-                } else {
-                    const pushIdx = pushR * 9 + pushC;
-                    const destCell = gameState.mapData[pushIdx];
-                    if (destCell.type === 'void') { isKill = true; } 
-                    else if (destCell.entityId || (destCell.type === 'rock' && player.climb < 1) || (destCell.type === 'hole' && player.dig < 1)) {
-                        if (player.hp + player.armor <= 1) isKill = true;
+                for (let i = 0; i < 81; i++) {
+                    const r = Math.floor(i / 9), c = i % 9;
+                    if ((r === playerR || c === playerC) && i !== player.pos && gameState.mapData[i].type !== 'void') {
+                        const cell = gameState.mapData[i];
+                        if (!cell.entityId || cell.entityId === ai.id) {
+                            const path = this.findPathToSpecificTarget(ai, i, gameState);
+                            if (path) {
+                                const moveCost = path.length;
+                                const totalMovesAvailable = ai.ap + ai.movesFree;
+                                if (totalMovesAvailable >= moveCost) {
+                                    const usedAP = Math.max(0, moveCost - ai.movesFree);
+                                    const remainingAP = ai.ap - usedAP;
+                                    if (remainingAP > 0) {
+                                        const dist = Math.abs(r - playerR) + Math.abs(c - playerC);
+                                        const potentialDmg = remainingAP + 1 - dist;
+                                        if (potentialDmg >= playerTotalHp) {
+                                            if (!this.hasTeammateInLine(i, player.pos, gameState, ai.id, remainingAP)) {
+                                                const dr = Math.sign(playerR - r);
+                                                const dc = Math.sign(playerC - c);
+                                                return { 
+                                                    type: 'combo', 
+                                                    steps: [
+                                                        ...path.map(p => ({ type: 'move', target: p })),
+                                                        { type: 'skill', skill: 'atomic_breath', cost: remainingAP, target: player.pos, direction: [dr, dc] }
+                                                    ]
+                                                };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                if (isKill) { return { type: 'skill', skill: 'ram', cost: 2, target: player.pos }; }
             }
-            return null;
+
+           
+            const hasRam = ai.heldCards.some(c => c.type === 'ram');
+            if (hasRam && ai.ap >= 2) {
+                const pr = Math.floor(player.pos / 9), pc = player.pos % 9;
+                const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]; 
+                for (let d of dirs) {
+                    const pushR = pr + d[0], pushC = pc + d[1];
+                    if (pushR >= 0 && pushR <= 8 && pushC >= 0 && pushC <= 8) {
+                        const pushIdx = pushR * 9 + pushC;
+                        if (gameState.mapData[pushIdx].type === 'void') {
+                            const spotR = pr - d[0], spotC = pc - d[1];
+                            if (spotR >= 0 && spotR <= 8 && spotC >= 0 && spotC <= 8) {
+                                const spotIdx = spotR * 9 + spotC;
+                                const spotCell = gameState.mapData[spotIdx];
+                                if (!spotCell.entityId || spotCell.entityId === ai.id) {
+                                    const path = this.findPathToSpecificTarget(ai, spotIdx, gameState);
+                                    if (path) {
+                                        const moveCost = path.length; 
+                                        const totalCost = moveCost + 2; 
+                                        if ((ai.ap + ai.movesFree) >= totalCost) {
+                                            return { 
+                                                type: 'combo', 
+                                                steps: [
+                                                    ...path.map(p => ({ type: 'move', target: p })),
+                                                    { type: 'skill', skill: 'ram', cost: 2, target: player.pos }
+                                                ]
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null; 
         },
 
         hasTeammateInLine: function(start, end, gameState, myId, rangeLimit = 99) {
@@ -790,13 +841,14 @@
         },
 
         getCollapseDangerZones: function(gameState) {
-            const hasDigLv4 = gameState.entities.some(e => !e.isDead && e.dig >= 4);
+            const voidCount = gameState.mapData.filter(cell => cell.type === 'void').length;
+            if (voidCount < 4) return new Set();
             const dangers = new Set();
-            if (!hasDigLv4) return dangers;
+            
             gameState.mapData.forEach(cell => {
                  if (cell.type !== 'void') {
                      const neighbors = this.getTopologyNeighbors(cell.index, gameState);
-                     if (neighbors.length <= 3) {
+                     if (neighbors.length <= 2) {
                          dangers.add(cell.index);
                          neighbors.forEach(n => dangers.add(n));
                      }
