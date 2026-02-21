@@ -1433,7 +1433,7 @@
         currentPhase = phaseName;
         // --- 貼在這裡 ---
     if (currentRound >= 2 && Math.random() < 0.2) {
-        triggerR10Collapse(); // 回合 10 開始，日夜階段一開始%崩一格
+        triggerRCollapse(); // 回合開始，日夜階段一開始%崩一格
     }
         window.currentPhaseId = currentRound + '-' + currentPhase; 
         subPhase = 'wait';
@@ -1518,11 +1518,11 @@
     if(!ent.isDead && ent.hp < ent.maxHp) {
         
         // 1. 依照你的設計：算預計補血量，並決定名稱
-        let expectedHeal = 2;
+        let expectedHeal = 1;
         let skillName = "再生";
         
         if (ent.maxHp >= 20) {
-            expectedHeal = Math.floor(ent.maxHp * 0.2); 
+            expectedHeal = Math.floor(ent.maxHp * 0.1); 
             skillName = "超再生";
         }
 
@@ -1813,7 +1813,7 @@
         if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
-        if(card.type === 'devour') { ent.atk += 3; }
+        if(card.type === 'devour') { ent.atk += 5; }
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
             else { 
@@ -1926,16 +1926,19 @@ function checkMapConnectivity(simulatedVoidIdx) {
 }
 
 // R10 坍塌邏輯
-function triggerR10Collapse() {
+function triggerRCollapse() {
     // 1. 找出符合條件的格子：不是虛空、上面沒人、且相鄰格子 <= 3 個
     let candidates = mapData.filter(c => {
-        if (c.type === 'void') return false;
-        if (c.entityId !== null) return false; 
+    if (c.type === 'void') return false;
+    if (c.entityId !== null) return false; 
 
-        const neighbors = getAdjacents(c.index);
-        // 修改這裡：只要相鄰的實體格子小於等於 3 個（代表不夠穩固）就可能崩塌
-        return neighbors.length <= 3; 
-    });
+    // 【這裡是要修改的地方】
+    // 我們要數的是「還有多少格子連著」，而不是「地圖座標有幾個鄰居」
+    const realNeighborCount = getNonVoidNeighborCount(c.index);
+    
+    // 如果連著的格子少於或等於 3，它就可能會崩塌
+    return realNeighborCount <= 3; 
+});
 
     candidates.sort(() => Math.random() - 0.5);
 
@@ -1944,7 +1947,7 @@ function triggerR10Collapse() {
             log(`🌋 R${currentRound} 地殼變動：[${target.row},${target.col}] 崩塌了！`);
             turnToVoid(target.index); 
             
-            // 2. 核心修改：接入連鎖崩塌邏輯（cascadeVoid 會處理 >= 1 邊相接的連鎖反應）
+            // 2. 核心修改：接入連鎖崩塌邏輯（cascadeVoid 會處理 <= 1 邊相接的連鎖反應）
             cascadeVoid(); 
             
             return; 
@@ -2263,7 +2266,6 @@ function triggerR10Collapse() {
 
                 // 如果偵查完發現完全沒目標，就結束函數
                 if (!foundTarget) {
-                    log(`${ent.name} 🚫 範圍內沒有目標，取消發射`);
                     return; 
                 }
                 // -----------------------------
