@@ -16,7 +16,7 @@
             --fog-mask-end: 30%;
             
             --bg-paper: #f5f5dc;
-            --tex-paper: url('https://www.transparenttextures.com/patterns/lined-paper-2.png');
+            --tex-paper: url('./assets/lined-paper-2.png');
         }
         
         body { 
@@ -126,11 +126,11 @@
         .cell { 
             position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; 
             background-color: #A9DA3F;
-            background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png');
+            background-image: url('./assets/football-no-lines.png');
         }
-        .cell.terrain-land { background-color: #A9DA3F; background-image: url('https://www.transparenttextures.com/patterns/football-no-lines.png'); }
-        .cell.terrain-rock { background-color: #808080; background-image: url('https://www.transparenttextures.com/patterns/gravel.png'); }
-        .cell.terrain-hole { background-color: #d9b6a3; background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png'); }
+        .cell.terrain-land { background-color: #A9DA3F; background-image: url('./assets/football-no-lines.png'); }
+        .cell.terrain-rock { background-color: #808080; background-image: url('./assets/gravel.png'); }
+        .cell.terrain-hole { background-color: #d9b6a3; background-image: url('./assets/dark-leather.png'); }
         .cell.terrain-void { background: #000; background-image: none; cursor: not-allowed; }
 
         .cell-number { position: absolute; bottom: 1px; right: 1px; font-size: 10px; color: #000; pointer-events: none; font-weight: bold; z-index: 5; opacity: 0.6; transition: opacity 0.3s; text-shadow: 0 0 2px #fff; }
