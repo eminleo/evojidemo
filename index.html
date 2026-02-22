@@ -92,7 +92,7 @@
         
         #board-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; background-color: transparent; overflow: hidden; position: relative; }
         
-        #grid { display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr); width: 100%; max-width: 400px; aspect-ratio: 1 / 1; border: 2px solid #333; background: #000; gap: 1px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        #grid { display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr); width: 100%; max-width: 400px; aspect-ratio: 1 / 1; border: 2px solid #333; background: #000; gap: 1px; position: relative; box-shadow: 0 15px 15px rgba(0,0,0,0.5); }
         
         #fog-layer {
             position: absolute;
@@ -146,36 +146,26 @@
         .food { position: absolute; top: 1px; left: 1px; font-size: 12px; z-index: 40; pointer-events: none; transition: all 0.2s; text-shadow: 0 0 2px #fff; }
         .food.corner { font-size: 12px; }
         
-        /* 角色圖片樣式 */
         .entity { 
-            width: 85%; height: 85%; 
-            display: flex; justify-content: center; align-items: center; 
-            z-index: 20; 
-            background-color: transparent; 
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: contain;
-            border: none; 
-            text-decoration: none; 
-            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-        }
-        .entity.active-turn { transform: scale(1.15); z-index: 25; filter: drop-shadow(0 0 8px var(--c-yellow)); }
-        .entity.dead { filter: grayscale(1) opacity(0.5); }
+    width: 80%; height: 80%; 
+    display: flex; justify-content: center; align-items: center; 
+    z-index: 20; 
+    background-color: transparent; 
+    border: none; 
+    box-shadow: none; 
+    background-size: 220% ; 
+    background-repeat: no-repeat;
+    background-position: center 110% ; 
+    transition: transform 0.2s, left 0.3s, top 0.3s; 
+    pointer-events: none; /* 不影響滑鼠點擊格子 */
+}
 
-        /* HUD 和 Modal 中的頭像小圖示 */
-        .char-icon {
-            width: 28px; height: 28px;
-            display: inline-block;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            vertical-align: middle;
-            margin-right: 6px;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
-        }
-        .char-icon-large {
-            width: 44px; height: 44px;
-        }
+        .entity.player { border-color: var(--c-blue); color: #000; }
+        .entity.ai1 { border-color: var(--c-red); color: #000; }
+        .entity.ai2 { border-color: var(--c-yellow); color: #000; }
+        .entity.ai3 { border-color: var(--c-green); color: #000; }
+        .entity.active-turn { transform: scale(1.1); border-style: dashed !important; box-shadow: 0 0 15px var(--c-yellow); z-index: 25; background-color: transparent; }
+        .entity.dead { filter: grayscale(1); opacity: 0.5; border-style: dotted; }
 
         #modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 500; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         
@@ -269,54 +259,34 @@
 </div>
 
 <script>
-    // --- 動畫與視覺邏輯 ---
-    let globalFrame = 1;
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then((reg) => console.log('Service Worker registered.', reg))
+                .catch((err) => console.log('Service Worker registration failed.', err));
+        });
+    }
+
+let spriteFrame = 1; 
+const totalFrames = 8;
+const spritePath = "assets/character/"; 
+
+function getEntityPrefix(ent) {
+    if (ent.isDead) return "blue"; 
+
     
-    // 定時器：每 0.125 秒更新一次全域幀編號，並只更新「圖片樣式」
-    setInterval(() => {
-        globalFrame++;
-        if (globalFrame > 8) globalFrame = 1;
-        
-        // 1. 更新地圖上的角色圖片 (直接操作 CSS，不重繪 DOM)
-        document.querySelectorAll('.entity').forEach(el => {
-            const prefix = el.dataset.prefix;
-            const isDead = el.classList.contains('dead');
-            const frame = isDead ? 1 : globalFrame;
-            if (prefix) {
-                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frame}.png')`;
-            }
-        });
+    const role = HivemindAI.assignRole(ent);
+    if (role === 'Hunter') return "purple";
+    if (role === 'Invasive') return "mud";
 
-        // 2. 更新狀態欄 (HUD) 中的小頭像
-        document.querySelectorAll('.char-icon').forEach(el => {
-            const prefix = el.dataset.prefix;
-            const isDead = el.dataset.isDead === 'true';
-            const frame = isDead ? 1 : globalFrame;
-            if (prefix) {
-                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frame}.png')`;
-            }
-        });
-    }, 125);
+    
+    if (ent.id === 'player') return "blue";
+    if (ent.id === 'ai1') return "red";
+    if (ent.id === 'ai2') return "yellow";
+    if (ent.id === 'ai3') return "green";
+    return "blue";
+}
 
-    // 核心助手：決定角色的顏色前綴
-    function getCharacterPrefix(ent) {
-        const role = HivemindAI.assignRole(ent);
-        if (role === 'Hunter') return 'purple';
-        if (role === 'Invasive') return 'mud';
-        
-        if (ent.id === 'player') return 'blue';
-        if (ent.id === 'ai1') return 'red';
-        if (ent.id === 'ai2') return 'yellow';
-        if (ent.id === 'ai3') return 'green';
-        return 'blue';
-    }
-
-    // 獲取圖片 URL 的完整路徑
-    function getCharacterImageUrl(ent, frame) {
-        const prefix = getCharacterPrefix(ent);
-        const f = ent.isDead ? 1 : frame;
-        return `./assets/character/${prefix}_idle_${f}.png`;
-    }
 
     const HivemindAI = {
         HARD_RANKING: [
@@ -942,6 +912,8 @@
         }
     };
 
+    const HELD_CARDS = ['speed','regeneration','tonicImmobility','explode','spore','ram','radiation','photosynthesis','daywalker','nightstalker','hibernation','web','ambush','foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis','shrink','snatch','filterfeed','burrow','pounce','feint','strangle','eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow','radioactivePollution','pachyderms'];
+    
     function getEntityIcon(ent) {
         if (ent.heldCards.length > 0) {
             let lastCard = ent.heldCards[ent.heldCards.length - 1];
@@ -1255,13 +1227,11 @@
             else gridEl.classList.remove('fog-active');
             
             if (currentPhase === 'day') {
-                gridDiv = document.getElementById('grid');
-                gridDiv.classList.add('phase-day');
-                gridDiv.classList.remove('phase-night');
+                gridEl.classList.add('phase-day');
+                gridEl.classList.remove('phase-night');
             } else {
-                gridDiv = document.getElementById('grid');
-                gridDiv.classList.add('phase-night');
-                gridDiv.classList.remove('phase-day');
+                gridEl.classList.add('phase-night');
+                gridEl.classList.remove('phase-day');
             }
 
             mapData.forEach(c => {
@@ -1425,7 +1395,7 @@
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
         consumables.forEach(c => add(c.t, 3, c.n));
-        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'鯊 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
     }
@@ -2346,7 +2316,7 @@ function triggerRCollapse() {
                 for(let i=1; i<=apCost; i++) {
                     let nr = r1 + dr*i;
                     let nc = c1 + dc*i;
-                    if(nr>=0 && nr<9 && nc >= 0 && nc < 9) {
+                    if(nr>=0 && nr<9 && nc>=0 && nc<9) {
                         let targetPos = nr*9 + nc;
                         let targetId = mapData[targetPos].entityId;
                         if(targetId) {
@@ -2519,7 +2489,7 @@ function triggerRCollapse() {
     function resolveCombat(atk, def) {
         atk.ap--; 
         let logContent = `<div class="combat-log">`;
-        logContent += `<div class="combat-header">⚔️ 戰鬥結算</div>`;
+        logContent += `<div class="combat-header">${getEntityIcon(atk)} ⚔️ ${getEntityIcon(def)}</div>`;
         let dist = getDist(atk.pos, def.pos);
         let atkData = getAtkDice(atk, def);
         let dodgeData = getDodgeDice(def, atk);
@@ -2546,7 +2516,9 @@ function triggerRCollapse() {
             logContent += `<div class="combat-result ${resultClass}">${compareStr} ➔ ${resultText}</div>`;
         }
 
+        let finalOutcome = ""; 
         if (dodgeResult === 'def') {
+            finalOutcome = "💨 閃避";
             if(atk.triggerOrder.includes('feint') && !atk.feintUsedTurn) {
                 atk.ap++; atk.feintUsedTurn = true;
                 logContent += `<div class="combat-note">${atk.name} 🐆 🔋+1</div>`;
@@ -2564,11 +2536,13 @@ function triggerRCollapse() {
             if (defResult === 'def') {
                 logContent += `<div class="combat-result success">${compareStr} ➔ 🛡️ 防禦成功</div>`;
                 showFloat(def.pos, "🛡️");
+                finalOutcome = "🛡️ 格擋";
             } else {
                 let dmg = 1 + atkData.total;
                 let hitMsg = def.armor > 0 ? `💥 命中 (-${dmg}💙)` : `💥 命中 (-${dmg}HP)`;
                 logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
                 applyDamage(def, dmg, atk, false, true);
+                finalOutcome = "💥 命中";
             }
         }
         
@@ -2644,8 +2618,8 @@ function triggerRCollapse() {
         let intendedHp = target.hp - remainingDmg;
         
         if (isAttackHit && source && source.triggerOrder.includes('devour') && intendedHp <= 1) {
-            log(`${source.name} 鯊 斬殺!`);
-            showFloat(target.pos, "鯊"); target.hp = 0; victimKill(target, source); return;
+            log(`${source.name} 🦈 斬殺!`);
+            showFloat(target.pos, "🦈"); target.hp = 0; victimKill(target, source); return;
         }
         
         let isFatal = intendedHp <= 0;
@@ -2726,29 +2700,23 @@ function triggerRCollapse() {
                 div.appendChild(f); 
             }
             if(c.entityId) {
-                let e = entities.find(x => x.id === c.entityId);
-                let roleClass = 'player';
-                if (e.id === 'ai1') roleClass = 'ai1';
-                if (e.id === 'ai2') roleClass = 'ai2';
-                if (e.id === 'ai3') roleClass = 'ai3';
-                
-                let el = document.createElement('div');
-                el.className = `entity ${roleClass} ${e.id===activeEntity?.id?'active-turn':''} ${e.isDead?'dead':''}`;
-                
-                // 設定資料屬性供動畫定時器使用
-                const prefix = getCharacterPrefix(e);
-                el.dataset.prefix = prefix;
-                
-                // 初次顯示第一幀
-                const frameSuffix = e.isDead ? '1' : globalFrame;
-                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frameSuffix}.png')`;
-                
-                div.appendChild(el);
-            }
+    let e = entities.find(x => x.id === c.entityId);
+    let prefix = getEntityPrefix(e); 
+    let roleClass = e.type === 'player' ? 'player' : e.id;
+    
+    let el = document.createElement('div');
+    el.className = `entity ${roleClass} ${e.id===activeEntity?.id?'active-turn':''} ${e.isDead?'dead':''}`;
+    
+    
+    const imgUrl = `${spritePath}${prefix}_idle_${spriteFrame}.png`;
+    el.style.backgroundImage = `url('${imgUrl}')`;
+    
+    
+    div.appendChild(el);
+}
+
             if(c.type === 'void') div.className = 'cell terrain-void';
         });
-        
-        // 渲染高亮邏輯不變
         if(activeEntity?.id === 'player' && !activeEntity.isDead) {
             if(subPhase === 'action') {
                 if (activeEntity.ap >= 1 || activeEntity.movesFree > 0) {
@@ -2768,10 +2736,12 @@ function triggerRCollapse() {
                 getAdjacents(activeEntity.pos).forEach(idx => {
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
                 });
-            } else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
+            } 
+            else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
                 let r = Math.floor(activeEntity.pos / 9);
                 let c = activeEntity.pos % 9;
                 let range = activeEntity.ap;
+
                 let validDirections = [];
                 entities.forEach(target => {
                     if (target.isDead || target.id === activeEntity.id) return;
@@ -2783,6 +2753,7 @@ function triggerRCollapse() {
                         if (tc === c) validDirections.push({dr: Math.sign(tr - r), dc: 0});
                     }
                 });
+
                 validDirections.forEach(dir => {
                     for (let i = 1; i <= range; i++) {
                         let nr = r + dir.dr * i;
@@ -2794,9 +2765,8 @@ function triggerRCollapse() {
                     }
                 });
             }
+
         }
-        
-        // 更新狀態視窗
         renderStatsContent();
     }
 
@@ -2815,21 +2785,14 @@ function triggerRCollapse() {
             if (e.id === 'ai3') borderColor = 'var(--c-green)';
             let moveText = e.movesFree > 0 ? ` <span style="font-size:0.9em">👟${e.movesFree}</span>` : '';
             let borderStyle = e.isDead ? 'dashed' : 'solid';
-            
-            // HUD 同步：使用與地圖角色一致的圖片前綴，並標記資料屬性供動畫更新
-            const prefix = getCharacterPrefix(e);
-            const charImg = getCharacterImageUrl(e, globalFrame);
-            
             return `<div class="order-card ${i===currentTurnIndex?'active':''} ${e.isDead?'dead':''}" 
                         style="border: 2px ${borderStyle} ${borderColor};"
                         onclick="showEntityStats('${e.id}')">
-                <div style="font-weight:bold">
-                    <div class="char-icon" data-prefix="${prefix}" data-is-dead="${e.isDead}" style="background-image: url('${charImg}')"></div>
-                    ${e.name}
-                </div>
+                <div style="font-weight:bold">${getEntityIcon(e)} ${e.name}</div>
                 <div>❤️${hpText} ${apIcon}${e.ap}${moveText}</div>
             </div>`;
         }).join('');
+        renderStatsContent();
     }
 
     window.showEntityStats = function(id) {
@@ -2870,7 +2833,6 @@ function triggerRCollapse() {
         if (!currentStatsEntityId || modalOverlay.style.display === 'none') return;
         let e = entities.find(x => x.id === currentStatsEntityId);
         if(!e) { closeModal(); return; } 
-        
         let hpHtml = '';
         if (e.maxHp > 9) {
              hpHtml += `<div class="hp-block hp-fill" style="width: auto; padding: 0 4px; font-size: 11px; line-height: 14px; color: #fff; font-weight: bold;">${e.hp}/${e.maxHp}</div>`;
@@ -2881,15 +2843,11 @@ function triggerRCollapse() {
             }
         }
         for(let i=0; i<e.armor; i++) { hpHtml += `<div class="hp-block hp-extra"></div>`; }
-        
         let foodHtml = '';
         for(let i=0; i<3; i++) { foodHtml += (i < e.food) ? '🍖' : '🦴'; }
-        
         let effectiveAtk = e.atk;
         let effectiveDef = e.def;
         let effectiveDodge = e.dodge;
-        
-        // 計算各類加成顯示
         if(e.triggerOrder.includes('ambush') && mapData[e.pos].type === 'hole') effectiveAtk += 2;
         if(e.triggerOrder.includes('foodGuard') && mapData[e.pos].hasFood) effectiveAtk += 2;
         if(e.triggerOrder.includes('dive') && mapData[e.pos].type === 'rock') effectiveAtk += 2;
@@ -2904,8 +2862,9 @@ function triggerRCollapse() {
         if(e.triggerOrder.includes('mimicry')) {
              let cType = mapData[e.pos].type;
              if(cType === 'rock' || cType === 'land') effectiveDodge += 1; }
-        if (e.triggerOrder.includes('gigantism')) { effectiveDodge = 0; }
-        
+        if (e.triggerOrder.includes('gigantism')) {
+    effectiveDodge = 0;
+        }
         const specsList = [
             { n: '❤️ 生命', v: e.maxHp, base: 2 },
             { n: '🛡️ 防禦', v: effectiveDef, base: e.def },
@@ -2921,7 +2880,6 @@ function triggerRCollapse() {
             return `<div class="skill-chip spec" style="${style}">${s.n} ${s.v}</div>`
         }).join('');
         if (specsHtml === '') specsHtml = '<div style="color:#ccc; font-size:12px; padding:5px;">(無強化數值)</div>';
-        
         const activeSkills = ['ram', 'teleport', 'dig_active']; 
         let skillsHtml = '';
         if (e.heldCards.length === 0) {
@@ -2941,7 +2899,6 @@ function triggerRCollapse() {
                 return `<div class="${classes}">${displayName}</div>`;
             }).join('');
         }
-        
         let apSchedule = e.card.special ? "🌞🎲🌛🎲" : `🌞${e.card.d}🌛${e.card.n}`;
         
         let headerRightHtml = '';
@@ -2972,18 +2929,11 @@ function triggerRCollapse() {
             bottomBtnHtml = `<button class="modal-btn" onclick="localStorage.removeItem('hivemind_save_v1'); location.reload()">開新一局</button>`;
         }
 
-        // Modal 中的頭像也同步動畫圖
-        const prefix = getCharacterPrefix(e);
-        const charImg = getCharacterImageUrl(e, globalFrame);
-
         let content = `
             <div class="stats-container">
                 <div class="stats-header">
                     <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:6px;">
-                        <div style="font-size:18px; font-weight:900; display:flex; align-items:center;">
-                            <div class="char-icon char-icon-large" data-prefix="${prefix}" data-is-dead="${e.isDead}" style="background-image: url('${charImg}')"></div>
-                            ${e.name} ${e.isDead?'(💀已死亡)':''}
-                        </div>
+                        <div style="font-size:18px; font-weight:900;">${getEntityIcon(e)} ${e.name} ${e.isDead?'(💀已死亡)':''}</div>
                         ${headerRightHtml}
                     </div>
                     <div class="hp-bar-container">${hpHtml}</div>
@@ -3023,7 +2973,34 @@ function triggerRCollapse() {
         html += `<button class="modal-btn" onclick="closeModal()">關閉</button>`;
         showModal(type==='deck'?"牌庫":"棄牌堆", html);
     }
+
+setInterval(() => {
+    spriteFrame = (spriteFrame % totalFrames) + 1;
+    
+    entities.forEach(ent => {
+        if (!ent.isDead) {
+            const el = document.querySelector(`.entity.${ent.id}`);
+            if (el) {
+                const prefix = getEntityPrefix(ent);
+                el.style.backgroundImage = `url('${spritePath}${prefix}_idle_${spriteFrame}.png')`;
+            }
+        }
+    });
+}, 200);
+
     initGame();
+
+function preloadSprites() {
+    const colors = ["blue", "red", "yellow", "green", "purple", "mud"];
+    colors.forEach(color => {
+        for(let i=1; i<=8; i++) {
+            const img = new Image();
+            img.src = `${spritePath}${color}_idle_${i}.png`;
+        }
+    });
+}
+preloadSprites();
+
 </script>
 </body>
 </html>
