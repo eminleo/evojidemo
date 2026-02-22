@@ -290,48 +290,57 @@ function getEntityPrefix(ent) {
 
     const HivemindAI = {
         HARD_RANKING: [
-            'parasite', 'radiation', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
-            'daywalker', 'nightstalker', 'thigmotaxis', 'photosynthesis', 'marineSnow', 'filterfeed',
-            'diapause', 'autotomy', 'web', 'gigantism', 'devour',
-            'ram', 'spore', 'snatch', 'colloid', 'mimicry', 'stinkGland', 'explode',
-            'tonicImmobility', 'eyespots', 'burrow', 'shrink',
-            'climb', 'def', 'dodge', 'counter', 'hp', 'dig',
-            'strangle', 'feint', 'pounce', 'foodGuard', 'ambush', 'dive', 'range'
+            'ram', 'radiation', 'parasite',
+            'regeneration', 'hibernation', 'pachyderms', 'molt', 'gigantism', 
+            'speed', 'daywalker', 'nightstalker', 'thigmotaxis',
+            'photosynthesis', 'marineSnow', 'diapause', 'filterfeed',
+            'autotomy', 'tonicImmobility',
+            'devour', 
+            'explode', 'spore', 'snatch', 'web', 'stinkGland', 
+            'colloid', 'mimicry', 'eyespots', 'burrow', 'shrink',
+            'strangle', 'feint', 'pounce', 'foodGuard', 'dive', 'ambush', 
+            'def', 'dodge', 'counter', 'hp', 'climb', 'dig', 'range'
         ],
 
         T0_CARDS: new Set([
-            'parasite', 'radiation', 'ram', 'molt', 'regeneration', 'hibernation', 'pachyderms', 'speed',
-            'daywalker', 'nightstalker', 'photosynthesis', 'marineSnow', 'filterfeed',
-            'diapause', 'autotomy', 'web', 'gigantism', 'devour'
+            'ram', 'radiation', 'parasite',
+            'regeneration', 'hibernation', 'pachyderms', 'molt', 'gigantism', 
+            'speed', 'daywalker', 'nightstalker', 'thigmotaxis',
+            'photosynthesis', 'marineSnow', 'diapause', 'filterfeed',
+            'autotomy', 'tonicImmobility',
+            'devour'
         ]),
 
         HELD_CARD_TYPES: new Set([
-            'speed','regeneration','tonicImmobility','explode','spore','ram','radiation',
-            'photosynthesis','daywalker','nightstalker','hibernation','web','ambush',
-            'foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis',
-            'shrink','snatch','filterfeed','burrow','pounce','feint','strangle',
-            'eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow',
-            'radioactivePollution','pachyderms'
+            'ram', 'radiation', 'parasite',
+            'regeneration', 'hibernation', 'pachyderms', 'molt', 'gigantism', 
+            'speed', 'daywalker', 'nightstalker', 'thigmotaxis',
+            'photosynthesis', 'marineSnow', 'diapause', 'filterfeed',
+            'autotomy', 'tonicImmobility',
+            'devour', 
+            'explode', 'spore', 'snatch', 'web', 'stinkGland', 
+            'colloid', 'mimicry', 'eyespots', 'burrow', 'shrink',
+            'strangle', 'feint', 'pounce', 'foodGuard', 'dive', 'ambush'
         ]),
 
         ROLE_PREFERENCE: {
             'Hunter': new Set([
-                'devour','hibernation','feint','strangle','foodGuard','pounce',
-                'ambush','dive','range','dodge','climb'
+            'strangle', 'feint', 'pounce', 'foodGuard', 'dive', 'ambush', 'dodge', 'range'
             ]),
             'Invasive': new Set([
-                'counter','def'
+            'explode', 'spore', 'snatch', 'web', 'stinkGland', 'colloid', 'mimicry', 'eyespots', 'burrow', 'shrink', 'def', 'counter', 'hp'
             ]),
             'Prey': new Set([
 
             ]),
             'Universal': new Set([
-                'ram','parasite','photosynthesis','marineSnow','filterfeed','diapause',
-                'radiation','molt','regeneration','pachyderms','autotomy',
-                'web','gigantism','spore','snatch','colloid','mimicry',
-                'stinkGland','explode','tonicImmobility','eyespots','burrow',
-                'shrink','hibernation','hp','dodge','def',
-                'speed','daywalker','nightstalker','dig','climb',
+            'ram', 'radiation', 'parasite',
+            'regeneration', 'hibernation', 'pachyderms', 'molt', 'gigantism', 
+            'speed', 'daywalker', 'nightstalker', 'thigmotaxis',
+            'photosynthesis', 'marineSnow', 'diapause', 'filterfeed',
+            'autotomy', 'tonicImmobility',
+            'devour', 
+            'climb', 'dig'
             ])
         },
 
