@@ -527,7 +527,7 @@ function getEntityPrefix(ent) {
 
         findPathToAttack: function(ai, target, gameState, reserveAP = 0) {
             const range = ai.range || 0;
-            if (range <= 1) return null;
+            if (range < 1) return null;
             const validLaunchSpots = gameState.mapData.filter(c => {
                 const d = this.getDist(c.index, target.pos);
                 if (d > 1 && target.triggerOrder.includes('mimicry')) {
