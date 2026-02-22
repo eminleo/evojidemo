@@ -146,21 +146,36 @@
         .food { position: absolute; top: 1px; left: 1px; font-size: 12px; z-index: 40; pointer-events: none; transition: all 0.2s; text-shadow: 0 0 2px #fff; }
         .food.corner { font-size: 12px; }
         
+        /* 角色圖片樣式 */
         .entity { 
             width: 85%; height: 85%; 
             display: flex; justify-content: center; align-items: center; 
-            font-weight: 900; font-size: 20px; z-index: 20; 
+            z-index: 20; 
             background-color: transparent; 
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            /* 原本有背景色和邊框，現在為了顯示 PNG 動畫改為透明 */
             border: none; 
             text-decoration: none; 
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
         }
         .entity.active-turn { transform: scale(1.15); z-index: 25; filter: drop-shadow(0 0 8px var(--c-yellow)); }
         .entity.dead { filter: grayscale(1) opacity(0.5); }
+
+        /* HUD 和 Modal 中的頭像小圖示 */
+        .char-icon {
+            width: 28px; height: 28px;
+            display: inline-block;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            vertical-align: middle;
+            margin-right: 6px;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+        }
+        .char-icon-large {
+            width: 44px; height: 44px;
+        }
 
         #modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 500; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         
@@ -254,30 +269,53 @@
 </div>
 
 <script>
-    // 動畫全域計時器：每 0.125 秒（一秒 8 幀）切換一次圖片
+    // --- 動畫與視覺邏輯 ---
     let globalFrame = 1;
+    
+    // 定時器：每 0.125 秒更新一次全域幀編號，並只更新「圖片樣式」
     setInterval(() => {
         globalFrame++;
         if (globalFrame > 8) globalFrame = 1;
-        // 為了讓動畫流暢，我們只需要更新地圖上存在的角色圖片即可，
-        // 這裡直接調用 renderGrid，雖然會重繪，但在現代瀏覽器性能足夠。
-        renderGrid();
+        
+        // 1. 更新地圖上的角色圖片 (直接操作 CSS，不重繪 DOM)
+        document.querySelectorAll('.entity').forEach(el => {
+            const prefix = el.dataset.prefix;
+            const isDead = el.classList.contains('dead');
+            const frame = isDead ? 1 : globalFrame;
+            if (prefix) {
+                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frame}.png')`;
+            }
+        });
+
+        // 2. 更新狀態欄 (HUD) 中的小頭像
+        document.querySelectorAll('.char-icon').forEach(el => {
+            const prefix = el.dataset.prefix;
+            const isDead = el.dataset.isDead === 'true';
+            const frame = isDead ? 1 : globalFrame;
+            if (prefix) {
+                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frame}.png')`;
+            }
+        });
     }, 125);
 
-    // 輔助函式：根據角色的 ID 或 職位 決定圖片前綴
+    // 核心助手：決定角色的顏色前綴
     function getCharacterPrefix(ent) {
-        // 先判斷是否有特殊職位（獵人/入侵種）
         const role = HivemindAI.assignRole(ent);
         if (role === 'Hunter') return 'purple';
         if (role === 'Invasive') return 'mud';
         
-        // 如果是普通職位，則根據 ID 分配顏色
         if (ent.id === 'player') return 'blue';
         if (ent.id === 'ai1') return 'red';
         if (ent.id === 'ai2') return 'yellow';
         if (ent.id === 'ai3') return 'green';
-        
-        return 'blue'; // 預設
+        return 'blue';
+    }
+
+    // 獲取圖片 URL 的完整路徑
+    function getCharacterImageUrl(ent, frame) {
+        const prefix = getCharacterPrefix(ent);
+        const f = ent.isDead ? 1 : frame;
+        return `./assets/character/${prefix}_idle_${f}.png`;
     }
 
     const HivemindAI = {
@@ -1217,11 +1255,13 @@
             else gridEl.classList.remove('fog-active');
             
             if (currentPhase === 'day') {
-                gridEl.classList.add('phase-day');
-                gridEl.classList.remove('phase-night');
+                gridDiv = document.getElementById('grid');
+                gridDiv.classList.add('phase-day');
+                gridDiv.classList.remove('phase-night');
             } else {
-                gridEl.classList.add('phase-night');
-                gridEl.classList.remove('phase-day');
+                gridDiv = document.getElementById('grid');
+                gridDiv.classList.add('phase-night');
+                gridDiv.classList.remove('phase-day');
             }
 
             mapData.forEach(c => {
@@ -2479,7 +2519,7 @@ function triggerRCollapse() {
     function resolveCombat(atk, def) {
         atk.ap--; 
         let logContent = `<div class="combat-log">`;
-        logContent += `<div class="combat-header">${getEntityIcon(atk)} ⚔️ ${getEntityIcon(def)}</div>`;
+        logContent += `<div class="combat-header">⚔️ 戰鬥結算</div>`;
         let dist = getDist(atk.pos, def.pos);
         let atkData = getAtkDice(atk, def);
         let dodgeData = getDodgeDice(def, atk);
@@ -2506,9 +2546,7 @@ function triggerRCollapse() {
             logContent += `<div class="combat-result ${resultClass}">${compareStr} ➔ ${resultText}</div>`;
         }
 
-        let finalOutcome = ""; 
         if (dodgeResult === 'def') {
-            finalOutcome = "💨 閃避";
             if(atk.triggerOrder.includes('feint') && !atk.feintUsedTurn) {
                 atk.ap++; atk.feintUsedTurn = true;
                 logContent += `<div class="combat-note">${atk.name} 🐆 🔋+1</div>`;
@@ -2526,13 +2564,11 @@ function triggerRCollapse() {
             if (defResult === 'def') {
                 logContent += `<div class="combat-result success">${compareStr} ➔ 🛡️ 防禦成功</div>`;
                 showFloat(def.pos, "🛡️");
-                finalOutcome = "🛡️ 格擋";
             } else {
                 let dmg = 1 + atkData.total;
                 let hitMsg = def.armor > 0 ? `💥 命中 (-${dmg}💙)` : `💥 命中 (-${dmg}HP)`;
                 logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
                 applyDamage(def, dmg, atk, false, true);
-                finalOutcome = "💥 命中";
             }
         }
         
@@ -2699,15 +2735,20 @@ function triggerRCollapse() {
                 let el = document.createElement('div');
                 el.className = `entity ${roleClass} ${e.id===activeEntity?.id?'active-turn':''} ${e.isDead?'dead':''}`;
                 
-                // 動態設定圖片路徑
+                // 設定資料屬性供動畫定時器使用
                 const prefix = getCharacterPrefix(e);
-                const frameSuffix = e.isDead ? '1' : globalFrame; // 死亡時保持第一幀
+                el.dataset.prefix = prefix;
+                
+                // 初次顯示第一幀
+                const frameSuffix = e.isDead ? '1' : globalFrame;
                 el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frameSuffix}.png')`;
                 
                 div.appendChild(el);
             }
             if(c.type === 'void') div.className = 'cell terrain-void';
         });
+        
+        // 渲染高亮邏輯不變
         if(activeEntity?.id === 'player' && !activeEntity.isDead) {
             if(subPhase === 'action') {
                 if (activeEntity.ap >= 1 || activeEntity.movesFree > 0) {
@@ -2727,12 +2768,10 @@ function triggerRCollapse() {
                 getAdjacents(activeEntity.pos).forEach(idx => {
                     if(mapData[idx].entityId) document.getElementById(`cell-${idx}`).classList.add('highlight-attack');
                 });
-            } 
-            else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
+            } else if(subPhase === 'active_skill' && window.activeSkillType === 'atomic_breath') {
                 let r = Math.floor(activeEntity.pos / 9);
                 let c = activeEntity.pos % 9;
                 let range = activeEntity.ap;
-
                 let validDirections = [];
                 entities.forEach(target => {
                     if (target.isDead || target.id === activeEntity.id) return;
@@ -2744,7 +2783,6 @@ function triggerRCollapse() {
                         if (tc === c) validDirections.push({dr: Math.sign(tr - r), dc: 0});
                     }
                 });
-
                 validDirections.forEach(dir => {
                     for (let i = 1; i <= range; i++) {
                         let nr = r + dir.dr * i;
@@ -2756,8 +2794,9 @@ function triggerRCollapse() {
                     }
                 });
             }
-
         }
+        
+        // 更新狀態視窗
         renderStatsContent();
     }
 
@@ -2776,16 +2815,21 @@ function triggerRCollapse() {
             if (e.id === 'ai3') borderColor = 'var(--c-green)';
             let moveText = e.movesFree > 0 ? ` <span style="font-size:0.9em">👟${e.movesFree}</span>` : '';
             let borderStyle = e.isDead ? 'dashed' : 'solid';
-            // HUD 小圖示使用角色對應前綴的小圖標
+            
+            // HUD 同步：使用與地圖角色一致的圖片前綴，並標記資料屬性供動畫更新
             const prefix = getCharacterPrefix(e);
+            const charImg = getCharacterImageUrl(e, globalFrame);
+            
             return `<div class="order-card ${i===currentTurnIndex?'active':''} ${e.isDead?'dead':''}" 
                         style="border: 2px ${borderStyle} ${borderColor};"
                         onclick="showEntityStats('${e.id}')">
-                <div style="font-weight:bold">${getEntityIcon(e)} ${e.name}</div>
+                <div style="font-weight:bold">
+                    <div class="char-icon" data-prefix="${prefix}" data-is-dead="${e.isDead}" style="background-image: url('${charImg}')"></div>
+                    ${e.name}
+                </div>
                 <div>❤️${hpText} ${apIcon}${e.ap}${moveText}</div>
             </div>`;
         }).join('');
-        renderStatsContent();
     }
 
     window.showEntityStats = function(id) {
@@ -2826,6 +2870,7 @@ function triggerRCollapse() {
         if (!currentStatsEntityId || modalOverlay.style.display === 'none') return;
         let e = entities.find(x => x.id === currentStatsEntityId);
         if(!e) { closeModal(); return; } 
+        
         let hpHtml = '';
         if (e.maxHp > 9) {
              hpHtml += `<div class="hp-block hp-fill" style="width: auto; padding: 0 4px; font-size: 11px; line-height: 14px; color: #fff; font-weight: bold;">${e.hp}/${e.maxHp}</div>`;
@@ -2836,11 +2881,15 @@ function triggerRCollapse() {
             }
         }
         for(let i=0; i<e.armor; i++) { hpHtml += `<div class="hp-block hp-extra"></div>`; }
+        
         let foodHtml = '';
         for(let i=0; i<3; i++) { foodHtml += (i < e.food) ? '🍖' : '🦴'; }
+        
         let effectiveAtk = e.atk;
         let effectiveDef = e.def;
         let effectiveDodge = e.dodge;
+        
+        // 計算各類加成顯示
         if(e.triggerOrder.includes('ambush') && mapData[e.pos].type === 'hole') effectiveAtk += 2;
         if(e.triggerOrder.includes('foodGuard') && mapData[e.pos].hasFood) effectiveAtk += 2;
         if(e.triggerOrder.includes('dive') && mapData[e.pos].type === 'rock') effectiveAtk += 2;
@@ -2855,9 +2904,8 @@ function triggerRCollapse() {
         if(e.triggerOrder.includes('mimicry')) {
              let cType = mapData[e.pos].type;
              if(cType === 'rock' || cType === 'land') effectiveDodge += 1; }
-        if (e.triggerOrder.includes('gigantism')) {
-    effectiveDodge = 0;
-        }
+        if (e.triggerOrder.includes('gigantism')) { effectiveDodge = 0; }
+        
         const specsList = [
             { n: '❤️ 生命', v: e.maxHp, base: 2 },
             { n: '🛡️ 防禦', v: effectiveDef, base: e.def },
@@ -2873,6 +2921,7 @@ function triggerRCollapse() {
             return `<div class="skill-chip spec" style="${style}">${s.n} ${s.v}</div>`
         }).join('');
         if (specsHtml === '') specsHtml = '<div style="color:#ccc; font-size:12px; padding:5px;">(無強化數值)</div>';
+        
         const activeSkills = ['ram', 'teleport', 'dig_active']; 
         let skillsHtml = '';
         if (e.heldCards.length === 0) {
@@ -2892,6 +2941,7 @@ function triggerRCollapse() {
                 return `<div class="${classes}">${displayName}</div>`;
             }).join('');
         }
+        
         let apSchedule = e.card.special ? "🌞🎲🌛🎲" : `🌞${e.card.d}🌛${e.card.n}`;
         
         let headerRightHtml = '';
@@ -2922,11 +2972,18 @@ function triggerRCollapse() {
             bottomBtnHtml = `<button class="modal-btn" onclick="localStorage.removeItem('hivemind_save_v1'); location.reload()">開新一局</button>`;
         }
 
+        // Modal 中的頭像也同步動畫圖
+        const prefix = getCharacterPrefix(e);
+        const charImg = getCharacterImageUrl(e, globalFrame);
+
         let content = `
             <div class="stats-container">
                 <div class="stats-header">
                     <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:6px;">
-                        <div style="font-size:18px; font-weight:900;">${getEntityIcon(e)} ${e.name} ${e.isDead?'(💀已死亡)':''}</div>
+                        <div style="font-size:18px; font-weight:900; display:flex; align-items:center;">
+                            <div class="char-icon char-icon-large" data-prefix="${prefix}" data-is-dead="${e.isDead}" style="background-image: url('${charImg}')"></div>
+                            ${e.name} ${e.isDead?'(💀已死亡)':''}
+                        </div>
                         ${headerRightHtml}
                     </div>
                     <div class="hp-bar-container">${hpHtml}</div>
