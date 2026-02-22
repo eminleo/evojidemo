@@ -1893,7 +1893,7 @@ function getEntityPrefix(ent) {
         if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
-        if(card.type === 'devour') { ent.atk += 4; }
+        if(card.type === 'devour') { ent.atk += 3; }
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
             else { 
@@ -3013,3 +3013,4 @@ preloadSprites();
 </script>
 </body>
 </html>
+
