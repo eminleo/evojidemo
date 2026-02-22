@@ -2547,7 +2547,7 @@ function triggerRCollapse() {
                 showFloat(def.pos, "🛡️");
                 finalOutcome = "🛡️ 格擋";
             } else {
-                let dmg = 1 + atkData.total;
+                let dmg = 1 + Math.floor(atkData.total / 2);
                 let hitMsg = def.armor > 0 ? `💥 命中 (-${dmg}💙)` : `💥 命中 (-${dmg}HP)`;
                 logContent += `<div class="combat-result fail">${compareStr} ➔ ${hitMsg}</div>`;
                 applyDamage(def, dmg, atk, false, true);
