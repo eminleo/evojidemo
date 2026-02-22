@@ -146,13 +146,21 @@
         .food { position: absolute; top: 1px; left: 1px; font-size: 12px; z-index: 40; pointer-events: none; transition: all 0.2s; text-shadow: 0 0 2px #fff; }
         .food.corner { font-size: 12px; }
         
-        .entity { width: 70%; height: 70%; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 20px; z-index: 20; background: #fff; border: 2px solid #000; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .entity.player { border-color: var(--c-blue); color: #000; }
-        .entity.ai1 { border-color: var(--c-red); color: #000; }
-        .entity.ai2 { border-color: var(--c-yellow); color: #000; }
-        .entity.ai3 { border-color: var(--c-green); color: #000; }
-        .entity.active-turn { transform: scale(1.2); border-style: dashed !important; box-shadow: 0 0 10px var(--c-yellow); z-index: 25; background-color: #fff; }
-        .entity.dead { filter: grayscale(1); opacity: 0.5; border-style: dotted; }
+        .entity { 
+            width: 85%; height: 85%; 
+            display: flex; justify-content: center; align-items: center; 
+            font-weight: 900; font-size: 20px; z-index: 20; 
+            background-color: transparent; 
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            /* 原本有背景色和邊框，現在為了顯示 PNG 動畫改為透明 */
+            border: none; 
+            text-decoration: none; 
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+        }
+        .entity.active-turn { transform: scale(1.15); z-index: 25; filter: drop-shadow(0 0 8px var(--c-yellow)); }
+        .entity.dead { filter: grayscale(1) opacity(0.5); }
 
         #modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 500; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         
@@ -246,12 +254,30 @@
 </div>
 
 <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then((reg) => console.log('Service Worker registered.', reg))
-                .catch((err) => console.log('Service Worker registration failed.', err));
-        });
+    // 動畫全域計時器：每 0.125 秒（一秒 8 幀）切換一次圖片
+    let globalFrame = 1;
+    setInterval(() => {
+        globalFrame++;
+        if (globalFrame > 8) globalFrame = 1;
+        // 為了讓動畫流暢，我們只需要更新地圖上存在的角色圖片即可，
+        // 這裡直接調用 renderGrid，雖然會重繪，但在現代瀏覽器性能足夠。
+        renderGrid();
+    }, 125);
+
+    // 輔助函式：根據角色的 ID 或 職位 決定圖片前綴
+    function getCharacterPrefix(ent) {
+        // 先判斷是否有特殊職位（獵人/入侵種）
+        const role = HivemindAI.assignRole(ent);
+        if (role === 'Hunter') return 'purple';
+        if (role === 'Invasive') return 'mud';
+        
+        // 如果是普通職位，則根據 ID 分配顏色
+        if (ent.id === 'player') return 'blue';
+        if (ent.id === 'ai1') return 'red';
+        if (ent.id === 'ai2') return 'yellow';
+        if (ent.id === 'ai3') return 'green';
+        
+        return 'blue'; // 預設
     }
 
     const HivemindAI = {
@@ -878,8 +904,6 @@
         }
     };
 
-    const HELD_CARDS = ['speed','regeneration','tonicImmobility','explode','spore','ram','radiation','photosynthesis','daywalker','nightstalker','hibernation','web','ambush','foodGuard','dive','stinkGland','mimicry','molt','autotomy','thigmotaxis','shrink','snatch','filterfeed','burrow','pounce','feint','strangle','eyespots','devour','parasite','colloid','gigantism','diapause','marineSnow','radioactivePollution','pachyderms'];
-    
     function getEntityIcon(ent) {
         if (ent.heldCards.length > 0) {
             let lastCard = ent.heldCards[ent.heldCards.length - 1];
@@ -1361,7 +1385,7 @@
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
         consumables.forEach(c => add(c.t, 3, c.n));
-        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'鯊 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
     }
@@ -2282,7 +2306,7 @@ function triggerRCollapse() {
                 for(let i=1; i<=apCost; i++) {
                     let nr = r1 + dr*i;
                     let nc = c1 + dc*i;
-                    if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                    if(nr>=0 && nr<9 && nc >= 0 && nc < 9) {
                         let targetPos = nr*9 + nc;
                         let targetId = mapData[targetPos].entityId;
                         if(targetId) {
@@ -2584,8 +2608,8 @@ function triggerRCollapse() {
         let intendedHp = target.hp - remainingDmg;
         
         if (isAttackHit && source && source.triggerOrder.includes('devour') && intendedHp <= 1) {
-            log(`${source.name} 🦈 斬殺!`);
-            showFloat(target.pos, "🦈"); target.hp = 0; victimKill(target, source); return;
+            log(`${source.name} 鯊 斬殺!`);
+            showFloat(target.pos, "鯊"); target.hp = 0; victimKill(target, source); return;
         }
         
         let isFatal = intendedHp <= 0;
@@ -2667,14 +2691,19 @@ function triggerRCollapse() {
             }
             if(c.entityId) {
                 let e = entities.find(x => x.id === c.entityId);
-                let displayChar = getEntityIcon(e);
                 let roleClass = 'player';
                 if (e.id === 'ai1') roleClass = 'ai1';
                 if (e.id === 'ai2') roleClass = 'ai2';
                 if (e.id === 'ai3') roleClass = 'ai3';
+                
                 let el = document.createElement('div');
                 el.className = `entity ${roleClass} ${e.id===activeEntity?.id?'active-turn':''} ${e.isDead?'dead':''}`;
-                el.innerText = displayChar;
+                
+                // 動態設定圖片路徑
+                const prefix = getCharacterPrefix(e);
+                const frameSuffix = e.isDead ? '1' : globalFrame; // 死亡時保持第一幀
+                el.style.backgroundImage = `url('./assets/character/${prefix}_idle_${frameSuffix}.png')`;
+                
                 div.appendChild(el);
             }
             if(c.type === 'void') div.className = 'cell terrain-void';
@@ -2747,6 +2776,8 @@ function triggerRCollapse() {
             if (e.id === 'ai3') borderColor = 'var(--c-green)';
             let moveText = e.movesFree > 0 ? ` <span style="font-size:0.9em">👟${e.movesFree}</span>` : '';
             let borderStyle = e.isDead ? 'dashed' : 'solid';
+            // HUD 小圖示使用角色對應前綴的小圖標
+            const prefix = getCharacterPrefix(e);
             return `<div class="order-card ${i===currentTurnIndex?'active':''} ${e.isDead?'dead':''}" 
                         style="border: 2px ${borderStyle} ${borderColor};"
                         onclick="showEntityStats('${e.id}')">
