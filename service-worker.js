@@ -28,11 +28,11 @@ const ASSETS_TO_CACHE = [
   './assets/character/green_idle_1.png', './assets/character/green_idle_2.png', './assets/character/green_idle_3.png', './assets/character/green_idle_4.png',
   './assets/character/green_idle_5.png', './assets/character/green_idle_6.png', './assets/character/green_idle_7.png', './assets/character/green_idle_8.png',
   
-  // 獵人 (Hunter - Purple)
+  // 入侵種 (Invasive - Purple)
   './assets/character/purple_idle_1.png', './assets/character/purple_idle_2.png', './assets/character/purple_idle_3.png', './assets/character/purple_idle_4.png',
   './assets/character/purple_idle_5.png', './assets/character/purple_idle_6.png', './assets/character/purple_idle_7.png', './assets/character/purple_idle_8.png',
   
-  // 入侵種 (Invasive - Mud)
+  // 獵人 (Hunter - Mud)
   './assets/character/mud_idle_1.png', './assets/character/mud_idle_2.png', './assets/character/mud_idle_3.png', './assets/character/mud_idle_4.png',
   './assets/character/mud_idle_5.png', './assets/character/mud_idle_6.png', './assets/character/mud_idle_7.png', './assets/character/mud_idle_8.png'
 ];
@@ -77,3 +77,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
