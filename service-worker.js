@@ -1,5 +1,5 @@
 // 升級到 v10，這會強制瀏覽器發現「有新東西了！」並更新快取
-const CACHE_NAME = 'evoji-demo-v10-animation-assets'; 
+const CACHE_NAME = 'evoji-demo-v1'; 
 
 const ASSETS_TO_CACHE = [
   './',
@@ -77,4 +77,5 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 
