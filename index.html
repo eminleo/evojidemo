@@ -750,11 +750,11 @@ function getEntityPrefix(ent) {
         getDist: function(p1, p2) { return Math.abs(Math.floor(p1/9) - Math.floor(p2/9)) + Math.abs(p1%9 - p2%9); },
 
         getSafeRadius: function(ai) {
-            let radius = 1;
-            if (ai.heldCards.some(c=>c.type==='radiation')) radius = 2;
-            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 2;
-            if (ai.heldCards.some(c=>c.type==='snatch')) radius = 2;
-            if (ai.heldCards.some(c=>c.type==='spore')) radius = 2;
+            let radius = 2;
+            if (ai.heldCards.some(c=>c.type==='radiation')) radius = 3;
+            if (ai.heldCards.some(c=>c.type==='radioactivePollution')) radius = 3;
+            if (ai.heldCards.some(c=>c.type==='snatch')) radius = 3;
+            if (ai.heldCards.some(c=>c.type==='spore')) radius = 3;
             return radius;
         },
 
@@ -1462,7 +1462,7 @@ function getEntityPrefix(ent) {
             entities.push({
                 id: r.id, name: r.name, type: r.type, pos: starts[i], isDead: false,
                 maxHp: 2, hp: 2, armor: 0, ap: 0, food: 3, card: cards[i], 
-                atk:0, def:0, range:0, counter:0, dodge:0, 
+                atk:1, def:1, range:1, counter:1, dodge:1, 
                 speed:0, climb:0, dig:0, fakeDeath:false,
                 movesFree: 0,
                 heldCards: [], triggerOrder: [], radiationLayers: 0, autotomyUsedPhase: null, feintUsedTurn: false     
