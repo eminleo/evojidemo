@@ -2024,6 +2024,7 @@ function triggerRCollapse() {
 
     function victimKill(victim, killer = null) {
         victim.isDead = true;
+        checkWinCondition();
         victim.hp = 0;
         victim.armor = 0; 
         mapData[victim.pos].entityId = null;
@@ -2941,7 +2942,7 @@ function triggerRCollapse() {
             <div class="stats-container">
                 <div class="stats-header">
                     <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:6px;">
-                        <div style="font-size:18px; font-weight:900;">${getEntityIcon(e)} ${e.name} ${e.isDead?'(💀已死亡)':''}</div>
+                        <div style="font-size:18px; font-weight:900;">${getEntityIcon(e)} ${e.name} ${e.isDead?'💀':''}</div>
                         ${headerRightHtml}
                     </div>
                     <div class="hp-bar-container">${hpHtml}</div>
