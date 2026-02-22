@@ -874,7 +874,6 @@ function getEntityPrefix(ent) {
 
         canHunterAttack: function(hunter, player, gameState) {
             if (hunter.range < 1) return false;
-            if (hunter.dig < 1) return false;
             const playerDefSum = player.def + player.dodge + player.counter;
             if (hunter.atk <= playerDefSum) return false;
             if (gameState.mapData[player.pos].type === 'rock' && player.climb > hunter.climb) return false;
@@ -1885,7 +1884,7 @@ function getEntityPrefix(ent) {
         if(card.type === 'hibernation') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'regeneration') { ent.maxHp += 2; ent.hp += 2; }
         if(card.type === 'tonicImmobility') ent.fakeDeath = true;
-        if(card.type === 'devour') { ent.atk += 5; }
+        if(card.type === 'devour') { ent.atk += 4; }
         if(card.type === 'dig') {
             if(ent.dig < 4) { ent.dig++; log(`${ent.name} ⛏️ Lv${ent.dig}`); } 
             else { 
