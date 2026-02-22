@@ -276,8 +276,8 @@ function getEntityPrefix(ent) {
 
     
     const role = HivemindAI.assignRole(ent);
-    if (role === 'Hunter') return "purple";
-    if (role === 'Invasive') return "mud";
+    if (role === 'Hunter') return "mud";
+    if (role === 'Invasive') return "purple";
 
     
     if (ent.id === 'player') return "blue";
@@ -2991,7 +2991,7 @@ setInterval(() => {
     initGame();
 
 function preloadSprites() {
-    const colors = ["blue", "red", "yellow", "green", "purple", "mud"];
+    const colors = ["blue", "red", "yellow", "green", "mud", "purple"];
     colors.forEach(color => {
         for(let i=1; i<=8; i++) {
             const img = new Image();
