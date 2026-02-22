@@ -792,7 +792,7 @@ function getEntityPrefix(ent) {
                                     const remainingAP = ai.ap - usedAP;
                                     if (remainingAP > 0) {
                                         const dist = Math.abs(r - playerR) + Math.abs(c - playerC);
-                                        const potentialDmg = remainingAP + 1 - dist;
+                                        const potentialDmg = remainingAP + 7 - dist;
                                         if (potentialDmg >= playerTotalHp) {
                                             if (!this.hasTeammateInLine(i, player.pos, gameState, ai.id, remainingAP)) {
                                                 const dr = Math.sign(playerR - r);
@@ -1107,7 +1107,7 @@ function getEntityPrefix(ent) {
                 if(targetId) {
                     let target = entities.find(e => e.id === targetId);
                     if(target && !target.isDead) {
-                        let dmg = apCost + 1 - i;
+                        let dmg = apCost + 7 - i;
                         if(dmg > 0) {
                             applyDamage(target, dmg, ent, true, false);
                             log(`命中 ${target.name} (💥${dmg})`);
@@ -1644,7 +1644,7 @@ function getEntityPrefix(ent) {
 
             if (effect === 'radioactivePollution') {
                 let d19 = sum(roll(1, 19)); 
-                let bonus = Math.floor(ent.radiationLayers / 100);
+                let bonus = Math.floor(ent.radiationLayers / 50);
                 let dmg = 1 + bonus;
                 if (ent.radiationLayers > d19) {
                     let isHigh = ent.radiationLayers > 19; 
@@ -2142,7 +2142,7 @@ function triggerRCollapse() {
                 
                 if (effect === 'radiation') {
                     let d19 = sum(roll(1, 19)); 
-                    let bonus = Math.floor(ent.radiationLayers / 100);
+                    let bonus = Math.floor(ent.radiationLayers / 50);
                     let dmg = 1 + bonus;
                     if (ent.radiationLayers > d19) {
                         let isHigh = ent.radiationLayers > 19; 
@@ -2321,7 +2321,7 @@ function triggerRCollapse() {
                         if(targetId) {
                             let target = entities.find(e => e.id === targetId);
                             if(target && !target.isDead) {
-                                let dmg = apCost + 1 - i;
+                                let dmg = apCost + 7 - i;
                                 if(dmg > 0) {
                                     applyDamage(target, dmg, ent, true, false);
                                     log(`命中 ${target.name} (💥${dmg})`);
