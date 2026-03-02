@@ -1408,7 +1408,7 @@ function getEntityPrefix(ent) {
         const add=(t,n,nm)=> { for(let i=0;i<n;i++) evolveDeck.push({type:t,name:nm}); };
         const consumables = [{t:'def', n:'🛡️ 防禦'},{t:'range', n:'🏹 射程'},{t:'hp', n:'❤️ 生命'},{t:'dodge', n:'💨 閃避'},{t:'counter', n:'🔄 反擊'},{t:'climb', n:'🧱 攀岩'},{t:'dig', n:'⛏️ 深掘'}];
         consumables.forEach(c => add(c.t, 3, c.n));
-        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🦞 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦗 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
+        const heldCardsData = [{t:'speed', n:'🐎 疾走'},{t:'regeneration', n:'🪱 再生'},{t:'tonicImmobility', n:'🐀 假死'},{t:'explode', n:'🐋 自爆'},{t:'spore', n:'🍄 孢子'},{t:'ram', n:'🐏 撞擊'},{t:'radiation', n:'☢️ 輻射'},{t:'photosynthesis', n:'🌻 光合作用'},{t:'daywalker', n:'🦍 日行'},{t:'nightstalker', n:'🦉 夜行'},{t:'hibernation', n:'🐌 蟄伏'},{t:'web', n:'🕷️ 結網'},{t:'ambush', n:'🐈 伏擊'},{t:'foodGuard', n:'🐕 護食'},{t:'dive', n:'🦅 俯衝'},{t:'stinkGland', n:'🦨 臭腺'},{t:'mimicry', n:'🦋 擬態'},{t:'molt', n:'🦞 蛻皮'},{t:'autotomy', n:'🦎 自割'},{t:'thigmotaxis', n:'🪳 趨觸'},{t:'shrink', n:'🐢 縮殼'},{t:'snatch', n:'🐿️ 搶食'},{t:'filterfeed', n:'🦪 濾食'},{t:'burrow', n:'🦡 穴居'},{t:'pounce', n:'🐅 撲擊'},{t:'feint', n:' 🐆 佯攻'},{t:'strangle', n:'🐍 絞殺'},{t:'eyespots', n:'🦚 眼斑'},{t:'devour', n:'🦈 吞噬'},{t:'parasite', n:'🦠 寄生'},{t:'colloid', n:'🪼 膠體'},{t:'gigantism', n:'🦕 巨型'},{t:'diapause', n:'🐞 滯育'},{t:'marineSnow', n:'🪸 海雪'},{t:'pachyderms', n:'🦛 厚皮'}];
         heldCardsData.forEach(c => add(c.t, 1, c.n));
         evolveDeck.sort(()=>Math.random()-0.5);
     }
@@ -1929,8 +1929,8 @@ function getEntityPrefix(ent) {
         gainPassiveSkill(ent, card);
         if(ent.triggerOrder.includes('molt')) {
             ent.maxHp++;
-            log(`${ent.name} 🦗 🩶+1`);
-            showFloat(ent.pos, "🦗"); 
+            log(`${ent.name} 🦞 🩶+1`);
+            showFloat(ent.pos, "🦞"); 
         }
         window.currentDraw = null;
         renderActionMenu('wait', '進化中...');
@@ -2436,7 +2436,7 @@ function triggerRCollapse() {
         let total = atkEnt.atk;
         let breakdown = [{source: '⚔️', val: atkEnt.atk}];
         if(atkEnt.triggerOrder.includes('ambush') && mapData[atkEnt.pos].type === 'hole') { 
-            total += 2; breakdown.push({source: '🦞', val: 2});
+            total += 2; breakdown.push({source: '🐈', val: 2});
         }
         if(atkEnt.triggerOrder.includes('foodGuard') && mapData[atkEnt.pos].hasFood) { 
             total += 2; breakdown.push({source: '🐕', val: 2});
@@ -3019,6 +3019,5 @@ preloadSprites();
 </script>
 </body>
 </html>
-
 
 
